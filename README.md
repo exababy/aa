@@ -1,7 +1,6 @@
 # SAS Smart PWA
 
 SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil öncelikli PWA**.
-API ayrıntıları için: [`../SAS_Smart_API_Dokumantasyon.md`](../SAS_Smart_API_Dokumantasyon.md)
 
 ```
 [ Telefon / PWA ] → HTTPS → [ Node.js (Express) proxy ] → HTTP → [ SAS sunucusu :8081 ]
@@ -23,7 +22,6 @@ API ayrıntıları için: [`../SAS_Smart_API_Dokumantasyon.md`](../SAS_Smart_API
 Node.js 20.6+ gerekir.
 
 ```bash
-cd sas-smart-pwa
 npm install
 cp .env.example .env      # SAS_HOST vb. değerleri düzenleyin
 npm start                 # http://localhost:3000
