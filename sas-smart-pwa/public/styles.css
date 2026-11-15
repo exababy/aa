@@ -155,8 +155,6 @@ input {
 }
 .btn.block { display: block; width: 100%; margin-top: 12px; }
 .btn.block.first { margin-top: 0; margin-bottom: 16px; min-height: 54px; }
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-.actions .btn { padding: 0 8px; }
 .rowbtn { width: 100%; border: 0; background: none; text-align: left; }
 .rowbtn:active { background: var(--surface-2); }
 .sheet-foot .note { margin-top: 10px; }

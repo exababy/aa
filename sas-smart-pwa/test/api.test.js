@@ -76,18 +76,14 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
   assert.equal((await call(`/sales/${after.sid}/print`, null, 'POST')).status, 200);
 });
 
-test('paket servis bölümü işaretlenir; kaydet ve yazdır', async () => {
+test('paket servis bölümü işaretlenir ve sipariş alır', async () => {
   const fields = (await call('/fields')).data;
   const paket = fields.filter((f) => f.paket);
   assert.equal(paket.length, 1);
   assert.equal(fields.filter((f) => !f.paket).length, 3);
   const free = (await call('/tables?field=' + paket[0].id)).data.find((t) => t.sid === 0);
-  const noPrint = await call('/orders', { fid: paket[0].id, tid: free.tableId, sid: 0, items: [{ id: 101, quantity: 1, comment: 'PAKET: Ali, 0555' }] });
-  assert.equal(noPrint.data.printed, null);
-  // yeni masada sid bilinmese de kayıttan sonra bulunup yazdırılır
-  const free2 = (await call('/tables?field=' + paket[0].id)).data.find((t) => t.sid === 0);
-  const withPrint = await call('/orders', { fid: paket[0].id, tid: free2.tableId, sid: 0, print: true, items: [{ id: 102, quantity: 1 }] });
-  assert.equal(withPrint.data.printed, true);
+  const order = await call('/orders', { fid: paket[0].id, tid: free.tableId, sid: 0, items: [{ id: 101, quantity: 1, comment: 'PAKET: Ali, 0555' }] });
+  assert.equal(order.status, 200);
 });
 
 test('doğrulama hataları 400 döner', async () => {

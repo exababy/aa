@@ -145,18 +145,8 @@ r.post('/orders', wrap(async (req, res) => {
   });
   // uid / uname istemciden değil oturumdan alınır
   const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items);
-  // print: true → kayıttan sonra adisyonu yazdır. Varsayılan: yazdırmadan kaydet.
-  let printed = null;
-  if (b.print === true) {
-    printed = false;
-    try {
-      const saleId = sid || ((await api.tables(fid)).find((t) => t.tableId === tid) || {}).sid;
-      if (saleId) { await api.print(saleId); printed = true; }
-    } catch (e) {
-      if (!(e instanceof SasError)) throw e; // sipariş kaydedildi; yazdırma hatası kaydı geri almaz
-    }
-  }
-  res.json({ ok: true, ...out, printed });
+  // Not: SAS sunucusu sipariş kaydında fişi kendisi basar; mobil API'de bunu kapatan parametre yoktur.
+  res.json({ ok: true, ...out });
 }));
 
 const KITCHEN = { bekleyen: 'Bekleyen', hazirlaniyor: 'Hazirlaniyor', hazir: 'Hazir' };

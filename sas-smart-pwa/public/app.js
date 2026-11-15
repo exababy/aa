@@ -370,8 +370,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   function openCart() {
     const body = el('div', { class: 'sheet-body' });
     const totalEl = el('strong');
-    const saveBtn = el('button', { class: 'btn', onclick: () => submit(false) }, 'Yazdırmadan kaydet');
-    const printBtn = el('button', { class: 'btn primary', onclick: () => submit(true) }, 'Kaydet ve yazdır');
+    const saveBtn = el('button', { class: 'btn primary block', onclick: submit }, 'Siparişi kaydet');
     const noteInput = paket ? el('input', {
       class: 'note', placeholder: 'Paket notu: müşteri adı, telefon, adres', maxLength: 150, value: paketNote,
       'aria-label': 'Paket notu',
@@ -381,8 +380,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
       el('div', { class: 'sheet-head' }, el('h2', null, `Sepet · ${table.tableName}`),
         el('button', { class: 'btn ghost', onclick: () => dlg.close() }, 'Kapat')),
       body,
-      el('div', { class: 'sheet-foot' }, noteInput, el('div', { class: 'total' }, el('span', null, 'Toplam'), totalEl),
-        el('div', { class: 'actions' }, saveBtn, printBtn)));
+      el('div', { class: 'sheet-foot' }, noteInput, el('div', { class: 'total' }, el('span', null, 'Toplam'), totalEl), saveBtn));
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
     function paint() {
@@ -407,12 +405,13 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
       store.set(cartKey, cart);
       paint();
     }
-    async function submit(print) {
-      saveBtn.disabled = printBtn.disabled = true;
+    async function submit() {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Kaydediliyor…';
       const note = paketNote.trim();
       try {
-        const r = await api('/orders', {
-          fid, tid: table.tableId, sid: table.sid, print,
+        await api('/orders', {
+          fid, tid: table.tableId, sid: table.sid,
           items: cart.map((l, i) => ({
             id: l.id, quantity: l.quantity,
             // Paket notu ayrı bir alan olmadığı için ilk ürünün notuna eklenir
@@ -423,12 +422,12 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
         store.del(cartKey);
         store.del(cartKey + ':note');
         dlg.close();
-        if (print && !r.printed) toast('Sipariş kaydedildi, ancak yazdırılamadı', 'err');
-        else toast(print ? 'Sipariş kaydedildi ve yazdırıldı' : 'Sipariş kaydedildi', 'ok');
+        toast('Sipariş kaydedildi', 'ok');
         back();
       } catch (err) {
         toast(err.message, 'err');
-        saveBtn.disabled = printBtn.disabled = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Siparişi kaydet';
       }
     }
     document.body.append(dlg);

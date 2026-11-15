@@ -1,5 +1,5 @@
 /* SAS Smart PWA service worker: uygulama kabuğunu önbelleğe alır, /api isteklerine dokunmaz. */
-const CACHE = 'sas-smart-v3';
+const CACHE = 'sas-smart-v4';
 const SHELL = ['/', '/styles.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
