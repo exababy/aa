@@ -1,0 +1,84 @@
+# SAS Smart PWA
+
+SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil öncelikli PWA**.
+API ayrıntıları için: [`../SAS_Smart_API_Dokumantasyon.md`](../SAS_Smart_API_Dokumantasyon.md)
+
+```
+[ Telefon / PWA ] → HTTPS → [ Node.js (Express) proxy ] → HTTP → [ SAS sunucusu :8081 ]
+```
+
+## Özellikler
+
+- Giriş (müşteri kodu / kullanıcı / şifre) → bölüm → masa → kategori → ürün → sepet → **sipariş kaydet**
+- Açık adisyon detayı ve adisyon yazdırma
+- Mutfak ekranı: Bekleyen / Hazırlanıyor / Hazır (otomatik yenilenir)
+- Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
+- PWA: ana ekrana eklenebilir, uygulama kabuğu çevrimdışı açılır, açık/koyu tema
+- `SasUsername` / `SasPasswd` header'ları yalnızca sunucuda tutulur; tarayıcıya gitmez
+- Sipariş kaydında fiyat ve kullanıcı bilgisi istemciden değil sunucudan alınır
+
+## Kurulum
+
+Node.js 20.6+ gerekir.
+
+```bash
+cd sas-smart-pwa
+npm install
+cp .env.example .env      # SAS_HOST vb. değerleri düzenleyin
+npm start                 # http://localhost:3000
+```
+
+Gerçek sunucu olmadan denemek için:
+
+```bash
+npm run demo              # giriş: demo / demo / demo
+npm test                  # API testleri (demo verisiyle)
+```
+
+## Ayarlar (`.env`)
+
+| Değişken | Açıklama | Varsayılan |
+|---|---|---|
+| `SAS_HOST` | SAS sunucusunun IP / alan adı | — (zorunlu) |
+| `SAS_PORT` | SAS portu | `8081` |
+| `SAS_USERNAME`, `SAS_PASSWD` | SAS servisinin beklediği header değerleri | — |
+| `PORT` | Bu uygulamanın portu | `3000` |
+| `TRUST_PROXY` | HTTPS reverse proxy arkasındaysa `1` | kapalı |
+| `SESSION_HOURS` | Oturum süresi | `12` |
+| `SAS_TIMEOUT_MS` | SAS istek zaman aşımı | `8000` |
+| `SAS_MOCK` | `1` ise demo verisi kullanılır | kapalı |
+
+## Yayına alma notları
+
+- **PWA kurulumu ve service worker için HTTPS şarttır** (localhost hariç). Uygulamayı
+  nginx / Caddy gibi bir reverse proxy veya bir PaaS arkasında HTTPS ile yayınlayın ve
+  `TRUST_PROXY=1` yapın (oturum çerezi `Secure` olur).
+- Node sunucusu SAS sunucusuna (`SAS_HOST:8081`) ağ üzerinden erişebilmelidir.
+- Oturumlar bellekte tutulur; sunucu yeniden başlarsa kullanıcılar tekrar giriş yapar.
+  Tek süreç (instance) olarak çalıştırın.
+
+## API (tarayıcı → Node)
+
+| Yol | SAS action |
+|---|---|
+| `POST /api/login` `{cc, username, password}` | `Auth!` |
+| `GET /api/branches` | `Branch!?Auth=22` |
+| `GET /api/fields` | `Fields!` |
+| `GET /api/tables?field=` | `TableStatus!` |
+| `GET /api/categories` | `MenuCat!` |
+| `GET /api/products?cat=` | `Product!` |
+| `POST /api/orders` `{fid, tid, sid, items:[{id, quantity, comment}]}` | `SaveSales!` |
+| `GET /api/sales/:sid` | `SalesDetails!` |
+| `POST /api/sales/:sid/print` | `SalesPrint!` |
+| `GET /api/kitchen/{bekleyen,hazirlaniyor,hazir}` | `Bekleyen!` / `Hazirlaniyor!` / `Hazir!` |
+| `GET /api/reports/{payments,sales}?start=YYYY-MM-DD&end=YYYY-MM-DD` | `Payments!` / `SalesReport!` |
+
+## Dosya yapısı
+
+```
+server.js         Express: oturum, doğrulama, /api rotaları, statik dosyalar
+lib/sas.js        SAS istemcisi + yanıt zarfı / DTO dönüştürücüleri
+lib/mock.js       Demo modu için sahte SAS sunucusu
+public/           PWA (index.html, app.js, styles.css, sw.js, manifest, ikonlar)
+test/             node:test ile API testleri
+```

@@ -1,0 +1,16 @@
+{
+  "name": "sas-smart-pwa",
+  "version": "1.0.0",
+  "description": "SAS Smart Suite için Node.js tabanlı mobil PWA (adisyon / sipariş)",
+  "private": true,
+  "main": "server.js",
+  "engines": { "node": ">=20.6" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "demo": "SAS_MOCK=1 node server.js",
+    "test": "SAS_MOCK=1 node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
