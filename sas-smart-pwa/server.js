@@ -114,7 +114,10 @@ r.post('/logout', (req, res) => {
 r.get('/me', (req, res) => res.json({ user: { id: req.session.uid, name: req.session.uname } }));
 
 r.get('/branches', wrap(async (req, res) => res.json(await api.branches())));
-r.get('/fields', wrap(async (req, res) => res.json(await api.fields())));
+// Paket servis bölümü: SAS_PAKET_FIELD (bölüm id) verilmişse o, yoksa adı "paket" içeren bölümler
+const PAKET_ID = process.env.SAS_PAKET_FIELD ? Number(process.env.SAS_PAKET_FIELD) : null;
+const isPaket = (f) => (PAKET_ID != null ? f.id === PAKET_ID : /paket|gel\s*al|take\s*away/i.test(f.name));
+r.get('/fields', wrap(async (req, res) => res.json((await api.fields()).map((f) => ({ ...f, paket: isPaket(f) })))));
 r.get('/tables', wrap(async (req, res) =>
   res.json(await api.tables(req.query.field === undefined ? null : intParam(req.query.field, 'field')))));
 r.get('/categories', wrap(async (req, res) => res.json(await api.categories())));
@@ -142,7 +145,18 @@ r.post('/orders', wrap(async (req, res) => {
   });
   // uid / uname istemciden değil oturumdan alınır
   const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items);
-  res.json({ ok: true, ...out });
+  // print: true → kayıttan sonra adisyonu yazdır. Varsayılan: yazdırmadan kaydet.
+  let printed = null;
+  if (b.print === true) {
+    printed = false;
+    try {
+      const saleId = sid || ((await api.tables(fid)).find((t) => t.tableId === tid) || {}).sid;
+      if (saleId) { await api.print(saleId); printed = true; }
+    } catch (e) {
+      if (!(e instanceof SasError)) throw e; // sipariş kaydedildi; yazdırma hatası kaydı geri almaz
+    }
+  }
+  res.json({ ok: true, ...out, printed });
 }));
 
 const KITCHEN = { bekleyen: 'Bekleyen', hazirlaniyor: 'Hazirlaniyor', hazir: 'Hazir' };

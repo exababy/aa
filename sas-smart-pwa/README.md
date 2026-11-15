@@ -11,6 +11,8 @@ API ayrıntıları için: [`../SAS_Smart_API_Dokumantasyon.md`](../SAS_Smart_API
 
 - Giriş (müşteri kodu / kullanıcı / şifre) → bölüm → masa → kategori → ürün → sepet → **sipariş kaydet**
 - Açık adisyon detayı ve adisyon yazdırma
+- Sepette iki seçenek: **Yazdırmadan kaydet** / **Kaydet ve yazdır**
+- **Paket Servis** bölümü: bölüm listesinde Salon'un yanında; yeni paket siparişi, açık paketler, paket notu (müşteri / adres)
 - Mutfak ekranı: Bekleyen / Hazırlanıyor / Hazır (otomatik yenilenir)
 - Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
 - PWA: ana ekrana eklenebilir, uygulama kabuğu çevrimdışı açılır, açık/koyu tema
@@ -46,6 +48,7 @@ npm test                  # API testleri (demo verisiyle)
 | `TRUST_PROXY` | HTTPS reverse proxy arkasındaysa `1` | kapalı |
 | `SESSION_HOURS` | Oturum süresi | `12` |
 | `SAS_TIMEOUT_MS` | SAS istek zaman aşımı | `8000` |
+| `SAS_PAKET_FIELD` | Paket servis bölümünün id'si (boşsa adı "paket" içeren bölüm) | otomatik |
 | `SAS_MOCK` | `1` ise demo verisi kullanılır | kapalı |
 
 ## Yayına alma notları
@@ -67,7 +70,7 @@ npm test                  # API testleri (demo verisiyle)
 | `GET /api/tables?field=` | `TableStatus!` |
 | `GET /api/categories` | `MenuCat!` |
 | `GET /api/products?cat=` | `Product!` |
-| `POST /api/orders` `{fid, tid, sid, items:[{id, quantity, comment}]}` | `SaveSales!` |
+| `POST /api/orders` `{fid, tid, sid, print?, items:[{id, quantity, comment}]}` | `SaveSales!` (+ `SalesPrint!`) |
 | `GET /api/sales/:sid` | `SalesDetails!` |
 | `POST /api/sales/:sid/print` | `SalesPrint!` |
 | `GET /api/kitchen/{bekleyen,hazirlaniyor,hazir}` | `Bekleyen!` / `Hazirlaniyor!` / `Hazir!` |

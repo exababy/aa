@@ -181,11 +181,13 @@ function duration(t) {
   return parts.join(' ');
 }
 
+/** Bölümler (Salon, Paket Servis, ...) SAS'tan gelir. Paket bölümü masa ızgarası yerine sipariş listesi gösterir. */
 async function viewTables() {
   const tok = begin();
+  const back = () => viewTables();
   const main = shell({ title: 'Masalar', sub: S.user && S.user.name, tab: 'tables', action: refreshBtn(() => load()) });
   const chips = el('div', { class: 'chips' });
-  const grid = el('div', { class: 'grid' }, loading());
+  const grid = el('div', null, loading());
   main.append(chips, grid);
 
   const paintChips = () => chips.replaceChildren(...S.fields.map((f) =>
@@ -194,6 +196,36 @@ async function viewTables() {
       onclick: () => { S.fieldId = f.id; store.set('fieldId', f.id); paintChips(); grid.replaceChildren(loading()); load(); },
     }, f.name)));
 
+  function paintTables(tables, fid) {
+    grid.className = 'grid';
+    if (!tables.length) return grid.replaceChildren(empty('Bu bölümde masa yok.'));
+    grid.replaceChildren(...tables.map((t) => {
+      const open = t.sid > 0;
+      return el('button', { class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(t, fid, back) },
+        el('strong', null, t.tableName),
+        open ? el('span', { class: 'amount' }, fmt(t.totalPrice)) : el('span', { class: 'muted' }, 'Boş'),
+        open ? el('span', { class: 'muted small' }, duration(t)) : null);
+    }));
+  }
+
+  function paintPaket(tables, fid) {
+    const open = tables.filter((t) => t.sid > 0);
+    const free = tables.find((t) => t.sid === 0);
+    grid.className = '';
+    grid.replaceChildren(
+      el('button', {
+        class: 'btn primary block first',
+        onclick: () => (free ? viewOrder(free, fid, back, true)
+          : toast('Boş paket yeri yok. Önce açık paketlerden birini kapatın.', 'err')),
+      }, '+ Yeni paket siparişi'),
+      el('h2', { class: 'section' }, `Açık paketler (${open.length})`),
+      open.length ? el('div', { class: 'list' }, open.map((t) =>
+        el('button', { class: 'row rowbtn', onclick: () => viewOrder(t, fid, back, true) },
+          el('div', { class: 'grow' }, el('strong', null, t.tableName),
+            el('span', { class: 'muted' }, [t.user, duration(t)].filter(Boolean).join(' · '))),
+          el('span', { class: 'amount' }, fmt(t.totalPrice))))) : empty('Açık paket siparişi yok.'));
+  }
+
   async function load(silent) {
     try {
       if (!S.fields) S.fields = await api('/fields');
@@ -201,17 +233,10 @@ async function viewTables() {
       if (!S.fields.length) return grid.replaceChildren(empty('Tanımlı bölüm bulunamadı.'));
       if (!S.fields.some((f) => f.id === S.fieldId)) S.fieldId = S.fields[0].id;
       if (!chips.children.length) paintChips();
-      const fid = S.fieldId;
-      const tables = await api('/tables?field=' + fid);
-      if (tok !== S.nav || fid !== S.fieldId) return;
-      if (!tables.length) return grid.replaceChildren(empty('Bu bölümde masa yok.'));
-      grid.replaceChildren(...tables.map((t) => {
-        const open = t.sid > 0;
-        return el('button', { class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(t, fid) },
-          el('strong', null, t.tableName),
-          open ? el('span', { class: 'amount' }, fmt(t.totalPrice)) : el('span', { class: 'muted' }, 'Boş'),
-          open ? el('span', { class: 'muted small' }, duration(t)) : null);
-      }));
+      const field = S.fields.find((f) => f.id === S.fieldId);
+      const tables = await api('/tables?field=' + field.id);
+      if (tok !== S.nav || field.id !== S.fieldId) return;
+      (field.paket ? paintPaket : paintTables)(tables, field.id);
     } catch (err) {
       if (tok === S.nav && !silent) grid.replaceChildren(errorBox(err, () => { grid.replaceChildren(loading()); load(); }));
     }
@@ -221,10 +246,11 @@ async function viewTables() {
 }
 
 // ---------- Sipariş (masa) ----------
-async function viewOrder(table, fid) {
+async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const tok = begin();
   const cartKey = 'cart:' + table.tableId;
   let cart = store.get(cartKey, []); // [{ id, name, price, quantity, comment }]
+  let paketNote = paket ? store.get(cartKey + ':note', '') : '';
   let catId = null;
   let query = '';
   let tab = 'menu';
@@ -242,8 +268,8 @@ async function viewOrder(table, fid) {
 
   const main = shell({
     title: table.tableName,
-    sub: table.sid > 0 ? `Açık adisyon · ${fmt(table.totalPrice)}` : 'Yeni adisyon',
-    back: () => viewTables(),
+    sub: (paket ? 'Paket servis · ' : '') + (table.sid > 0 ? `Açık adisyon · ${fmt(table.totalPrice)}` : 'Yeni adisyon'),
+    back,
     footer,
   });
   if (table.sid > 0) {
@@ -344,12 +370,19 @@ async function viewOrder(table, fid) {
   function openCart() {
     const body = el('div', { class: 'sheet-body' });
     const totalEl = el('strong');
-    const save = el('button', { class: 'btn primary block', onclick: submit }, 'Siparişi kaydet');
+    const saveBtn = el('button', { class: 'btn', onclick: () => submit(false) }, 'Yazdırmadan kaydet');
+    const printBtn = el('button', { class: 'btn primary', onclick: () => submit(true) }, 'Kaydet ve yazdır');
+    const noteInput = paket ? el('input', {
+      class: 'note', placeholder: 'Paket notu: müşteri adı, telefon, adres', maxLength: 150, value: paketNote,
+      'aria-label': 'Paket notu',
+      oninput: (e) => { paketNote = e.target.value; store.set(cartKey + ':note', paketNote); },
+    }) : null;
     const dlg = el('dialog', { class: 'sheet', onclose: () => { dlg.remove(); paintProducts(); paintBar(); } },
       el('div', { class: 'sheet-head' }, el('h2', null, `Sepet · ${table.tableName}`),
         el('button', { class: 'btn ghost', onclick: () => dlg.close() }, 'Kapat')),
       body,
-      el('div', { class: 'sheet-foot' }, el('div', { class: 'total' }, el('span', null, 'Toplam'), totalEl), save));
+      el('div', { class: 'sheet-foot' }, noteInput, el('div', { class: 'total' }, el('span', null, 'Toplam'), totalEl),
+        el('div', { class: 'actions' }, saveBtn, printBtn)));
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
     function paint() {
@@ -374,23 +407,28 @@ async function viewOrder(table, fid) {
       store.set(cartKey, cart);
       paint();
     }
-    async function submit() {
-      save.disabled = true;
-      save.textContent = 'Kaydediliyor…';
+    async function submit(print) {
+      saveBtn.disabled = printBtn.disabled = true;
+      const note = paketNote.trim();
       try {
-        await api('/orders', {
-          fid, tid: table.tableId, sid: table.sid,
-          items: cart.map((l) => ({ id: l.id, quantity: l.quantity, comment: l.comment })),
+        const r = await api('/orders', {
+          fid, tid: table.tableId, sid: table.sid, print,
+          items: cart.map((l, i) => ({
+            id: l.id, quantity: l.quantity,
+            // Paket notu ayrı bir alan olmadığı için ilk ürünün notuna eklenir
+            comment: [i === 0 && note ? `PAKET: ${note}` : '', l.comment].filter(Boolean).join(' | '),
+          })),
         });
         cart = [];
         store.del(cartKey);
+        store.del(cartKey + ':note');
         dlg.close();
-        toast('Sipariş kaydedildi', 'ok');
-        viewTables();
+        if (print && !r.printed) toast('Sipariş kaydedildi, ancak yazdırılamadı', 'err');
+        else toast(print ? 'Sipariş kaydedildi ve yazdırıldı' : 'Sipariş kaydedildi', 'ok');
+        back();
       } catch (err) {
         toast(err.message, 'err');
-        save.disabled = false;
-        save.textContent = 'Siparişi kaydet';
+        saveBtn.disabled = printBtn.disabled = false;
       }
     }
     document.body.append(dlg);
@@ -406,7 +444,7 @@ async function viewOrder(table, fid) {
     if (!S.cats.length) return list.replaceChildren(empty('Menü kategorisi bulunamadı.'));
     selectCat(S.cats[0].id);
   } catch (err) {
-    if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewOrder(table, fid)));
+    if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewOrder(table, fid, back, paket)));
   }
 }
 

@@ -7,7 +7,7 @@
 const ok = (Data, Message = '') => ({ Result: true, Data, Message });
 const fail = (Message) => ({ Result: false, Data: null, Message });
 
-const fields = [{ id: 1, name: 'Salon' }, { id: 2, name: 'Bahçe' }, { id: 3, name: 'Teras' }];
+const fields = [{ id: 1, name: 'Salon' }, { id: 2, name: 'Bahçe' }, { id: 3, name: 'Teras' }, { id: 4, name: 'Paket Servis' }];
 const cats = [
   { id: 1, name: 'Kebaplar' }, { id: 2, name: 'Dürümler' }, { id: 3, name: 'Pide & Lahmacun' },
   { id: 4, name: 'İçecekler' }, { id: 5, name: 'Tatlılar' },
@@ -29,7 +29,7 @@ for (const [cat, rows] of Object.entries(menu)) {
 
 const tables = [];
 let tableId = 0;
-for (const f of fields) for (let i = 1; i <= 12; i++) tables.push({ TableId: ++tableId, field: f.id, TableName: `${f.name} ${i}` });
+for (const f of fields) for (let i = 1; i <= 12; i++) tables.push({ TableId: ++tableId, field: f.id, TableName: `${f.id === 4 ? 'Paket' : f.name} ${i}` });
 
 let nextSid = 40;
 let nextDsid = 1;
