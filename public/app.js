@@ -1,6 +1,30 @@
 'use strict';
 /* SAS Smart PWA — tek sayfa mobil arayüz (bağımlılık yok). */
 
+// ---------- Sürüm / güncelleme ----------
+// Bu dosyanın sürümü, index.html'deki <script src="/app.js?v=..."> adresinden okunur.
+const APP_VERSION = new URL(document.currentScript.src).searchParams.get('v') || '';
+/** Önbelleği ve service worker'ı temizleyip sayfayı sunucudan yeniden yükler. */
+async function hardReload() {
+  try {
+    if ('caches' in window) for (const k of await caches.keys()) await caches.delete(k);
+    if ('serviceWorker' in navigator) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+  } catch { /* yine de yeniden yükle */ }
+  location.reload();
+}
+/** Sunucudaki sürüm farklıysa uygulamayı kendiliğinden yeniler (aynı sürüm için en fazla bir kez). */
+async function checkVersion() {
+  try {
+    const res = await fetch('/api/version', { cache: 'no-store' });
+    if (!res.ok) return;
+    const { version } = await res.json();
+    if (!version || !APP_VERSION || version === APP_VERSION) return;
+    if (sessionStorage.getItem('reloadedFor') === version) return;
+    sessionStorage.setItem('reloadedFor', version);
+    await hardReload();
+  } catch { /* çevrimdışı: sonra tekrar denenir */ }
+}
+
 // ---------- Yardımcılar ----------
 const $app = document.getElementById('app');
 const money = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -666,6 +690,10 @@ async function viewAccount() {
         onclick: () => { store.del('prefs'); applyPrefs(); viewAccount(); },
       }, 'Varsayılana dön')),
     el('h2', { class: 'section' }, 'Şubeler'), branches,
+    el('h2', { class: 'section' }, 'Uygulama'),
+    el('div', { class: 'list' }, el('div', { class: 'row' },
+      el('div', { class: 'grow' }, el('strong', null, 'Sürüm'), el('span', { class: 'muted' }, APP_VERSION || 'bilinmiyor')),
+      el('button', { class: 'btn', onclick: (e) => { e.target.disabled = true; hardReload(); } }, 'Güncelle'))),
     S.installEvt ? el('button', {
       class: 'btn block',
       onclick: async (e) => { S.installEvt.prompt(); await S.installEvt.userChoice; S.installEvt = null; e.target.remove(); },
@@ -698,6 +726,8 @@ window.addEventListener('offline', setOffline);
 setOffline();
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+checkVersion();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
 
 (async () => {
   $app.replaceChildren(loading());

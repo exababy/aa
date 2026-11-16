@@ -142,3 +142,16 @@ test('garson raporları göremez', async () => {
   assert.equal((await call('/reports/sales?start=2026-11-15&end=2026-11-15')).status, 403);
   assert.equal((await call('/fields')).status, 200);
 });
+
+test('sürüm: index.html sürümlü dosya adresleri verir ve önbelleğe alınmaz', async () => {
+  const root = base.replace('/api', '');
+  const { version } = (await call('/version')).data;
+  assert.match(version, /^[a-f0-9]{10}$/);
+  const res = await fetch(root + '/');
+  const html = await res.text();
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.ok(html.includes(`/app.js?v=${version}`) && html.includes(`/styles.css?v=${version}`));
+  assert.ok(!html.includes('__V__'));
+  assert.equal((await fetch(root + '/app.js')).headers.get('cache-control'), 'no-cache');
+  assert.equal((await fetch(root + '/sw.js')).headers.get('cache-control'), 'no-cache');
+});

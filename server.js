@@ -3,6 +3,7 @@
  * SAS Smart PWA — Express BFF (proxy) + statik PWA sunucusu.
  *   [Tarayıcı / PWA] → /api/* → [bu sunucu] → http://{SAS_HOST}:8081/SASncps/@Action/...
  */
+const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
@@ -121,6 +122,19 @@ r.use((req, res, next) => {
   next();
 });
 
+// Sürüm: arayüz dosyaları değişince değişir. index.html'deki dosya adreslerine eklenir (?v=...),
+// böylece telefon eski app.js / styles.css dosyasını önbellekten kullanamaz.
+const PUBLIC = path.join(__dirname, 'public');
+function buildVersion() {
+  const h = crypto.createHash('sha1');
+  for (const f of ['index.html', 'app.js', 'styles.css', 'sw.js']) {
+    const st = fs.statSync(path.join(PUBLIC, f));
+    h.update(`${f}:${st.size}:${st.mtimeMs};`);
+  }
+  return h.digest('hex').slice(0, 10);
+}
+r.get('/version', (req, res) => res.json({ version: buildVersion() }));
+
 // Giriş ekranında seçilebilecek kullanıcı adları (isteğe bağlı). SAS API'sinde kullanıcı listesi yoktur.
 const LOGIN_USERS = (process.env.SAS_LOGIN_USERS || '').split(',').map((v) => v.trim()).filter(Boolean).slice(0, 50);
 r.get('/login-users', (req, res) => res.json(LOGIN_USERS));
@@ -219,9 +233,15 @@ r.use((err, req, res, next) => {
 });
 
 app.use('/api', r);
-app.use(express.static(path.join(__dirname, 'public'), {
+app.get(['/', '/index.html'], (req, res) => {
+  const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8').replaceAll('__V__', buildVersion());
+  res.set('Cache-Control', 'no-store').type('html').send(html);
+});
+app.use(express.static(PUBLIC, {
+  index: false,
   setHeaders(res, file) {
-    if (/(sw\.js|index\.html|manifest\.webmanifest)$/.test(file)) res.set('Cache-Control', 'no-cache');
+    // Sürümlü (?v=) dosyalar dışında her şey her açılışta sunucuya sorulur
+    if (/\.(js|css|html|webmanifest)$/.test(file)) res.set('Cache-Control', 'no-cache');
   },
 }));
 
