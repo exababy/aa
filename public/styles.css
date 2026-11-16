@@ -171,6 +171,8 @@ input {
 .prow.off .padd { opacity: .55; }
 .ptoggle { flex: none; width: 92px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--danger); font-weight: var(--fwb, 600); }
 .ptoggle.show { color: var(--go); }
+.ptoggle.half { width: 96px; color: var(--muted); }
+.ptoggle.half.show { color: var(--go); }
 .ptoggle:active { background: var(--surface-2); }
 .note { min-height: 40px; font-size: .9rem; }
 

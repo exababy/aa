@@ -30,7 +30,6 @@ const $app = document.getElementById('app');
 const money = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (n) => `${money.format(n || 0)} ₺`;
 const qty = (n) => Number(n || 0).toLocaleString('tr-TR'); // 1,5 gibi
-const HALF_TYPE = 2; // bu tipteki ürünler yarım porsiyon (0,5 adım) satılabilir
 
 function el(tag, props, ...kids) {
   const n = document.createElement(tag);
@@ -351,7 +350,7 @@ async function viewTables() {
 async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const tok = begin();
   const cartKey = 'cart:' + table.tableId;
-  let cart = store.get(cartKey, []); // [{ id, name, price, type, quantity, comment }]
+  let cart = store.get(cartKey, []); // [{ id, name, price, half, quantity, comment }]
   let paketNote = paket ? store.get(cartKey + ':note', '') : '';
   let catId = null;
   let query = '';
@@ -404,7 +403,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const line = (id) => cart.find((i) => i.id === id);
   function change(p, delta) {
     let l = line(p.id);
-    if (!l) { l = { id: p.id, name: p.name, price: p.price, type: p.type, quantity: 0, comment: '' }; cart.push(l); }
+    if (!l) { l = { id: p.id, name: p.name, price: p.price, half: !!p.half, quantity: 0, comment: '' }; cart.push(l); }
     l.quantity = Math.min(999, l.quantity + delta);
     if (l.quantity <= 0) cart = cart.filter((i) => i !== l);
     store.set(cartKey, cart);
@@ -438,7 +437,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     if (!shown.length) return list.replaceChildren(empty(query ? 'Eşleşen ürün yok.' : 'Bu kategoride ürün yok.'));
     list.replaceChildren(...shown.map((p) => {
       const l = line(p.id);
-      const half = p.type === HALF_TYPE;
+      const half = !!p.half; // sunucu belirler: ürün tipi + kategori ayarı
       // Satıra dokunmak 1 adet ekler; yarım porsiyon satılabilen ürünlerde ayrıca +½ düğmesi vardır.
       return el('div', { class: 'prow' + (l ? ' selected' : '') },
         el('button', { class: 'padd', 'aria-label': `${p.name} ekle`, onclick: () => change(p, 1) },
@@ -546,7 +545,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
         }))));
     }
     function step(l, d) {
-      l.quantity = Math.min(999, l.quantity + d * (l.type === HALF_TYPE ? 0.5 : 1));
+      l.quantity = Math.min(999, l.quantity + d * (l.half ? 0.5 : 1));
       if (l.quantity <= 0) cart = cart.filter((i) => i !== l);
       store.set(cartKey, cart);
       paint();
@@ -741,7 +740,7 @@ async function viewMenuAdmin(tab = 'products') {
   let cats = [];
 
   /** Gizle / Göster düğmeli satırlar. */
-  function paint(rows, url, label, emptyText) {
+  function paint(rows, url, label, emptyText, extra) {
     if (!rows.length) return list.replaceChildren(empty(emptyText));
     list.replaceChildren(...rows.map((it) => {
       const btn = el('button', {
@@ -754,10 +753,11 @@ async function viewMenuAdmin(tab = 'products') {
             S.products.clear(); // sipariş ekranı güncel menüyü yeniden alsın
             S.cats = null;
           } catch (err) { toast(err.message, 'err'); }
-          if (tok === S.nav) paint(rows, url, label, emptyText);
+          if (tok === S.nav) paint(rows, url, label, emptyText, extra);
         },
       }, it.hidden ? 'Göster' : 'Gizle');
-      return el('div', { class: 'prow' + (it.hidden ? ' off' : '') }, el('div', { class: 'padd' }, label(it)), btn);
+      return el('div', { class: 'prow' + (it.hidden ? ' off' : '') }, el('div', { class: 'padd' }, label(it)),
+        extra ? extra(it, () => paint(rows, url, label, emptyText, extra)) : null, btn);
     }));
   }
   async function loadProducts() {
@@ -776,7 +776,23 @@ async function viewMenuAdmin(tab = 'products') {
     sel.hidden = tab !== 'products';
     if (!cats.length) return list.replaceChildren(empty('Menü kategorisi bulunamadı.'));
     if (tab === 'cats') {
-      return paint(cats, (c) => `/categories/${c.id}/hidden`, (c) => el('span', { class: 'pname' }, c.name), '');
+      // ½ düğmesi: bu kategoride yarım porsiyon (0,5 / 1,5) satılabilsin mi
+      return paint(cats, (c) => `/categories/${c.id}/hidden`, (c) => el('span', { class: 'pname' }, c.name), '', (c, repaint) => {
+        const b = el('button', {
+          class: 'ptoggle half' + (c.half ? ' show' : ''),
+          'aria-label': `${c.name}: yarım porsiyon ${c.half ? 'açık, kapat' : 'kapalı, aç'}`,
+          onclick: async () => {
+            b.disabled = true;
+            try {
+              await api(`/categories/${c.id}/half`, { half: !c.half });
+              c.half = !c.half;
+              S.products.clear();
+            } catch (err) { toast(err.message, 'err'); }
+            if (tok === S.nav) repaint();
+          },
+        }, c.half ? '½ Açık' : '½ Kapalı');
+        return b;
+      });
     }
     const keep = sel.value;
     sel.replaceChildren(...cats.map((c) => el('option', { value: String(c.id) }, c.hidden ? `${c.name} (gizli)` : c.name)));

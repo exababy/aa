@@ -163,6 +163,8 @@ test('yarım porsiyon: yalnızca P_Type 2 ürünlerde 0,5 adım kabul edilir', a
   const kebap = (await call('/products?cat=' + cats[0].id)).data[0];
   const icecek = (await call('/products?cat=' + cats[3].id)).data[0];
   assert.equal(kebap.type, 2);
+  assert.equal(kebap.half, true);
+  assert.equal(icecek.half, false);
   assert.equal(icecek.type, 0);
   const order = (items) => call('/orders', { fid: 1, tid: 70, sid: 0, items });
   assert.equal((await order([{ id: icecek.id, quantity: 1.5 }])).status, 400);
@@ -220,4 +222,30 @@ test('gizli kategoriler: listede görünmez, ürünleri boş döner, garson gizl
   await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
   assert.equal((await call(`/categories/${target.id}/hidden`, { hidden: false })).status, 200);
   assert.equal((await call('/categories')).data.length, cats.length);
+});
+
+test('dürümlerde yarım porsiyon varsayılan kapalı; kasiyer kategori bazında açıp kapatır', async () => {
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  const cats = (await call('/categories?all=1')).data;
+  const durum = cats.find((c) => c.name === 'Dürümler');
+  const kebap = cats.find((c) => c.name === 'Kebaplar');
+  assert.equal(durum.half, false);
+  assert.equal(kebap.half, true);
+  const p = (await call('/products?cat=' + durum.id)).data[0];
+  assert.equal(p.type, 2); // SAS'ta yarım tipinde olsa da
+  assert.equal(p.half, false);
+  const order = (id, quantity) => call('/orders', { fid: 1, tid: 68, sid: 0, items: [{ id, quantity }] });
+  assert.equal((await order(p.id, 1.5)).status, 400);
+  assert.equal((await order(p.id, 2)).status, 200);
+
+  assert.equal((await call(`/categories/${durum.id}/half`, { half: true })).status, 200);
+  assert.equal((await call('/products?cat=' + durum.id)).data[0].half, true);
+  assert.equal((await order(p.id, 1.5)).status, 200);
+  assert.equal((await call(`/categories/${kebap.id}/half`, { half: false })).status, 200);
+  assert.equal((await call('/products?cat=' + kebap.id)).data[0].half, false);
+  assert.equal((await call(`/categories/${kebap.id}/half`, { half: true })).status, 200);
+  assert.equal((await call(`/categories/${durum.id}/half`, { half: false })).status, 200);
+
+  await call('/login', { cc: 'demo', username: 'garson', password: 'garson' });
+  assert.equal((await call(`/categories/${durum.id}/half`, { half: true })).status, 403);
 });

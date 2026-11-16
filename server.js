@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
-const { api, cfg, SasError } = require('./lib/sas');
+const { api, cfg, SasError, HALF_TYPE } = require('./lib/sas');
 
 const app = express();
 app.disable('x-powered-by');
@@ -208,20 +208,41 @@ function hiddenStore(fileName) {
 }
 const hidden = hiddenStore('hidden-products.json');
 const hiddenCats = hiddenStore('hidden-categories.json');
+// Yarım porsiyon: SAS'ta tipi 2 olan ürünler yarım satılabilir; kasiyer bunu kategori bazında kapatıp açabilir.
+// Ayar yapılmamış kategorilerde varsayılan: adı "dürüm" içerenlerde kapalı, diğerlerinde açık.
+const halfCats = hiddenStore('half-categories.json'); // kategori id -> 'on' | 'off'
+const NO_HALF_DEFAULT = /d[üu]r[üu]m/i;
+const catNames = new Map();
+async function categories() {
+  const all = await api.categories();
+  for (const c of all) catNames.set(c.id, c.name);
+  return all;
+}
+const halfInCat = (id) => (halfCats.has(id) ? halfCats.get(id) === 'on' : !NO_HALF_DEFAULT.test(catNames.get(id) || ''));
+const allowHalf = (p) => p.type === HALF_TYPE && halfInCat(p.cat);
+
 const cashierOnly = (req, res, next) => (canReport(req.session)
   ? next() : res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' }));
 
 r.get('/categories', wrap(async (req, res) => {
-  const all = await api.categories();
+  const all = await categories();
   if (req.query.all !== '1') return res.json(all.filter((c) => !hiddenCats.has(c.id)));
   if (!canReport(req.session)) return res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' });
-  res.json(all.map((c) => ({ ...c, hidden: hiddenCats.has(c.id) })));
+  res.json(all.map((c) => ({ ...c, hidden: hiddenCats.has(c.id), half: halfInCat(c.id) })));
+}));
+r.post('/categories/:id/half', cashierOnly, wrap(async (req, res) => {
+  const id = intParam(req.params.id, 'id', 1);
+  if (typeof (req.body || {}).half !== 'boolean') throw new BadRequest('Geçersiz parametre: half');
+  if (!(await categories()).some((c) => c.id === id)) throw new BadRequest('Kategori bulunamadı.');
+  halfCats.set(id, req.body.half ? 'on' : 'off');
+  halfCats.save();
+  res.json({ ok: true, half: req.body.half });
 }));
 r.post('/categories/:id/hidden', cashierOnly, wrap(async (req, res) => {
   const id = intParam(req.params.id, 'id', 1);
   if (typeof (req.body || {}).hidden !== 'boolean') throw new BadRequest('Geçersiz parametre: hidden');
   if (req.body.hidden) {
-    const cat = (await api.categories()).find((c) => c.id === id);
+    const cat = (await categories()).find((c) => c.id === id);
     if (!cat) throw new BadRequest('Kategori bulunamadı.');
     hiddenCats.set(id, cat.name);
   } else {
@@ -234,7 +255,8 @@ r.post('/categories/:id/hidden', cashierOnly, wrap(async (req, res) => {
 r.get('/products', wrap(async (req, res) => {
   const cat = intParam(req.query.cat, 'cat');
   if (req.query.all !== '1' && hiddenCats.has(cat)) return res.json([]);
-  const all = await api.products(cat);
+  if (!catNames.has(cat)) await categories();
+  const all = (await api.products(cat)).map((p) => ({ ...p, half: allowHalf(p) }));
   if (req.query.all !== '1') return res.json(all.filter((p) => !hidden.has(p.id)));
   if (!canReport(req.session)) return res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' });
   res.json(all.map((p) => ({ ...p, hidden: hidden.has(p.id) })));
@@ -277,7 +299,8 @@ r.post('/orders', wrap(async (req, res) => {
   // uid / uname istemciden değil oturumdan alınır
   const blocked = items.find((it) => hidden.has(it.id));
   if (blocked) throw new BadRequest(`"${hidden.get(blocked.id)}" menüde gizli; sepetten çıkarın.`);
-  const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items);
+  if (items.some((it) => !Number.isInteger(it.quantity)) && !catNames.size) await categories();
+  const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items, allowHalf);
   // Not: SAS sunucusu sipariş kaydında fişi kendisi basar; mobil API'de bunu kapatan parametre yoktur.
   res.json({ ok: true, ...out });
 }));
