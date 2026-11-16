@@ -122,9 +122,12 @@ farklıysa kendini yeniler; sürüm Ayarlar ekranında görünür.
 
 ## Yayına alma notları
 
-- **PWA kurulumu ve service worker için HTTPS şarttır** (localhost hariç). Uygulamayı
-  nginx / Caddy gibi bir reverse proxy veya bir PaaS arkasında HTTPS ile yayınlayın ve
-  `TRUST_PROXY=1` yapın (oturum çerezi `Secure` olur).
+- **Telefona kurulum ("Yükle") için HTTPS şarttır.** Yerel ağda bunun için sunucu, `PORT+1` üzerinde kendi
+  ürettiği sertifikayla HTTPS de dinler (`HTTPS_PORT`; kapatmak için `0`). Her telefonda bir kez
+  `http://<sunucu-ip>:<PORT>/kurulum` sayfasındaki adımlar izlenir: sertifikayı indir → Ayarlar'dan *CA sertifikası*
+  olarak yükle → `https://<sunucu-ip>:<PORT+1>` adresini aç → *Yükle*. Sertifikalar `DATA_DIR/tls` altında saklanır;
+  bu klasör silinirse telefonlara sertifikanın yeniden kurulması gerekir. İnternete açık kurulumda bunun yerine
+  nginx / Caddy gibi bir reverse proxy kullanın ve `TRUST_PROXY=1` yapın.
 - Node sunucusu SAS sunucusuna (`SAS_HOST:8081`) ağ üzerinden erişebilmelidir.
 - Oturumlar bellekte tutulur; sunucu yeniden başlarsa kullanıcılar tekrar giriş yapar.
   Tek süreç (instance) olarak çalıştırın.

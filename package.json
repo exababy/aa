@@ -1,6 +1,6 @@
 {
   "name": "sas-smart-pwa",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "NetCHIEF Smart: yeni kasa arayüzü (pos/) ve SAS Smart mobil PWA",
   "private": true,
   "main": "server.js",
@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "express": "^4.21.2",
-    "mysql2": "^3.24.6"
+    "mysql2": "^3.24.6",
+    "node-forge": "^1.4.3"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

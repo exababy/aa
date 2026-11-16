@@ -333,12 +333,57 @@ app.use(express.static(PUBLIC, {
   },
 }));
 
+// ---------- Telefona kurulum (yerel HTTPS) ----------
+// Chrome bir PWA'yı yalnızca güvenli bağlantıda "Yükle" ile kurar. Sunucu, HTTP'nin yanında kendi ürettiği
+// yerel sertifikayla HTTPS de dinler (HTTPS_PORT; varsayılan PORT+1, kapatmak için 0). Bkz. lib/tls.js ve /kurulum.
+const HTTP_PORT = Number(process.env.PORT || 3000);
+const HTTPS_PORT = process.env.HTTPS_PORT === undefined ? HTTP_PORT + 1 : Number(process.env.HTTPS_PORT);
+let tls = null;
+function tlsFiles() {
+  if (!tls && HTTPS_PORT > 0) tls = require('./lib/tls').load(path.join(DATA_DIR, 'tls'), process.env.HTTPS_HOSTS);
+  return tls;
+}
+app.get('/sas-smart-ca.crt', (req, res) => {
+  const t = tlsFiles();
+  if (!t) return res.status(404).send('HTTPS kapalı.');
+  res.set({ 'Content-Type': 'application/x-x509-ca-cert', 'Content-Disposition': 'attachment; filename="sas-smart-ca.crt"', 'Cache-Control': 'no-store' }).send(t.ca);
+});
+app.get('/kurulum', (req, res) => {
+  const t = tlsFiles();
+  const host = String(req.headers.host || '').replace(/:\d+$/, '').replace(/[^\w.\-]/g, '');
+  const url = `https://${host}:${HTTPS_PORT}/`;
+  res.set('Cache-Control', 'no-store').type('html').send(`<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>SAS Smart — Telefona kurulum</title>
+<link rel="stylesheet" href="/styles.css"></head><body><main>
+<h1>Telefona kurulum</h1>
+${t ? `<p class="muted">Her telefonda bir kez yapılır. Sertifika yalnızca bu sunucuya (yerel ağ) aittir.</p>
+<ol>
+<li><p><a class="btn primary" href="/sas-smart-ca.crt">1. Sertifikayı indir</a></p></li>
+<li><p>2. Telefonda <strong>Ayarlar</strong> → arama kutusuna <strong>sertifika</strong> yazın → <strong>CA sertifikası</strong> (ya da "Sertifika yükle → CA sertifikası") → <strong>Yine de yükle</strong> → indirilen <strong>sas-smart-ca.crt</strong> dosyasını seçin.</p></li>
+<li><p>3. Chrome'u tamamen kapatıp açın ve şu adrese gidin:</p><p><a class="btn primary" href="${url}">${url}</a></p></li>
+<li><p>4. Chrome menüsü (⋮) → <strong>Ana ekrana ekle</strong> → <strong>Yükle</strong>.</p></li>
+</ol>
+<p class="muted small">Adres çubuğunda kilit simgesi görünmeli. "Bağlantınız gizli değil" uyarısı çıkarsa 2. adım tamamlanmamıştır.</p>`
+    : '<p>Bu sunucuda HTTPS kapalı (HTTPS_PORT=0).</p>'}
+</main></body></html>`);
+});
+
 if (require.main === module) {
-  const port = Number(process.env.PORT || 3000);
-  app.listen(port, process.env.HOST || '0.0.0.0', () => {
-    console.log(`SAS Smart PWA → http://localhost:${port}`);
+  const host = process.env.HOST || '0.0.0.0';
+  app.listen(HTTP_PORT, host, () => {
+    console.log(`SAS Smart PWA → http://localhost:${HTTP_PORT}`);
     console.log(cfg.mock ? 'DEMO modu (SAS_MOCK=1): giriş demo / demo / demo' : `SAS sunucusu: ${cfg.host || '(SAS_HOST ayarlanmamış!)'}:${cfg.port}`);
   });
+  try {
+    const t = tlsFiles();
+    if (t) {
+      require('node:https').createServer({ key: t.key, cert: t.cert }, app).listen(HTTPS_PORT, host, () => {
+        console.log(`HTTPS (telefona kurulum için) → https://${t.hosts[0]}:${HTTPS_PORT}  ·  kurulum adımları: http://${t.hosts[0]}:${HTTP_PORT}/kurulum`);
+      }).on('error', (e) => console.error(`HTTPS başlatılamadı (port ${HTTPS_PORT}): ${e.message}`));
+    }
+  } catch (e) {
+    console.error(`HTTPS sertifikası hazırlanamadı: ${e.message}`);
+  }
 }
 
 module.exports = app;
