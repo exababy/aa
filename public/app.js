@@ -261,6 +261,7 @@ function duration(t) {
  */
 async function viewTables() {
   const tok = begin();
+  S.products.clear(); // menü her masa açılışında sunucudan taze alınır (gizlenen ürünler vb.)
   const back = () => viewTables();
   const main = shell({ title: 'Masalar', sub: S.user && S.user.name, tab: 'tables', action: refreshBtn(() => load()) });
   const chips = el('div', { class: 'chips' });
@@ -694,6 +695,10 @@ async function viewAccount() {
         onclick: () => { store.del('prefs'); applyPrefs(); viewAccount(); },
       }, 'Varsayılana dön')),
     el('h2', { class: 'section' }, 'Şubeler'), branches,
+    S.user.reports ? el('h2', { class: 'section' }, 'Menü') : null,
+    S.user.reports ? el('div', { class: 'list' }, el('div', { class: 'row' },
+      el('div', { class: 'grow' }, el('strong', null, 'Menü düzeni'), el('span', { class: 'muted' }, 'Sipariş ekranında görünmeyecek ürünleri seçin')),
+      el('button', { class: 'btn', onclick: () => viewMenuAdmin() }, 'Düzenle'))) : null,
     el('h2', { class: 'section' }, 'Uygulama'),
     el('div', { class: 'list' }, el('div', { class: 'row' },
       el('div', { class: 'grow' }, el('strong', null, 'Sürüm'), el('span', { class: 'muted' }, APP_VERSION || 'bilinmiyor')),
@@ -719,6 +724,56 @@ async function viewAccount() {
         el('span', { class: 'muted' }, `#${b.id}`))) : [empty('Şube bilgisi yok.')]));
   } catch (err) {
     if (tok === S.nav) branches.replaceChildren(empty(err.message));
+  }
+}
+
+// ---------- Menü düzeni (kasiyer): ürün gizle / göster ----------
+async function viewMenuAdmin() {
+  if (!S.user || !S.user.reports) return viewAccount();
+  const tok = begin();
+  const list = el('div', { class: 'plist' }, loading());
+  const sel = el('select', { class: 'select', 'aria-label': 'Kategori', onchange: () => load() });
+  const main = shell({ title: 'Menü düzeni', sub: 'Gizlenen ürünler sipariş ekranında görünmez', back: () => viewAccount() });
+  main.append(sel, list);
+
+  function paint(rows) {
+    if (!rows.length) return list.replaceChildren(empty('Bu kategoride ürün yok.'));
+    list.replaceChildren(...rows.map((p) => {
+      const btn = el('button', {
+        class: 'ptoggle' + (p.hidden ? ' show' : ''),
+        onclick: async () => {
+          btn.disabled = true;
+          try {
+            await api(`/products/${p.id}/hidden`, { hidden: !p.hidden });
+            p.hidden = !p.hidden;
+            S.products.clear(); // sipariş ekranı güncel listeyi yeniden alsın
+          } catch (err) { toast(err.message, 'err'); }
+          if (tok === S.nav) paint(rows);
+        },
+      }, p.hidden ? 'Göster' : 'Gizle');
+      return el('div', { class: 'prow' + (p.hidden ? ' off' : '') },
+        el('div', { class: 'padd' }, el('span', { class: 'pname' }, p.name), el('span', { class: 'pprice' }, fmt(p.price))),
+        btn);
+    }));
+  }
+  async function load() {
+    const cat = sel.value;
+    list.replaceChildren(loading());
+    try {
+      const rows = await api(`/products?cat=${cat}&all=1`);
+      if (tok === S.nav && sel.value === cat) paint(rows);
+    } catch (err) {
+      if (tok === S.nav) list.replaceChildren(errorBox(err, load));
+    }
+  }
+  try {
+    if (!S.cats) S.cats = await api('/categories');
+    if (tok !== S.nav) return;
+    if (!S.cats.length) return list.replaceChildren(empty('Menü kategorisi bulunamadı.'));
+    sel.replaceChildren(...S.cats.map((c) => el('option', { value: String(c.id) }, c.name)));
+    load();
+  } catch (err) {
+    if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewMenuAdmin()));
   }
 }
 

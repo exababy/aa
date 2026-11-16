@@ -1,6 +1,6 @@
 {
   "name": "sas-smart-pwa",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "SAS Smart Suite için Node.js tabanlı mobil PWA (adisyon / sipariş)",
   "private": true,
   "main": "server.js",

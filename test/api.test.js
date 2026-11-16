@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+process.env.DATA_DIR = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'sas-test-'));
 const app = require('../server');
 const { parseEnvelope, buildUrl } = require('../lib/sas');
 
@@ -171,4 +172,31 @@ test('yarım porsiyon: yalnızca P_Type 2 ürünlerde 0,5 adım kabul edilir', a
   const t = (await call('/tables?field=1')).data.find((x) => x.tableId === 70);
   assert.equal(t.totalPrice, kebap.price * 1.5 + icecek.price * 2);
   assert.equal((await call('/sales/' + t.sid)).data[0].quantity, 1.5);
+});
+
+test('gizli ürünler: kasiyer gizler, listede ve siparişte görünmez, dosyada saklanır', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  const cat = (await call('/categories')).data[3].id;
+  const [first, second] = (await call('/products?cat=' + cat)).data;
+  assert.equal((await call(`/products/${first.id}/hidden`, { hidden: true })).status, 200);
+  assert.ok(!(await call('/products?cat=' + cat)).data.some((p) => p.id === first.id));
+  const all = (await call(`/products?cat=${cat}&all=1`)).data;
+  assert.equal(all.find((p) => p.id === first.id).hidden, true);
+  assert.equal(all.find((p) => p.id === second.id).hidden, false);
+  assert.equal((await call('/orders', { fid: 1, tid: 69, sid: 0, items: [{ id: first.id, quantity: 1 }] })).status, 400);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'hidden-products.json'), 'utf8')), { [first.id]: first.name });
+  assert.equal((await call(`/products/${first.id}/hidden`, { hidden: 'x' })).status, 400);
+  assert.equal((await call('/products/999999/hidden', { hidden: true })).status, 400);
+
+  // garson gizleyemez, tüm listeyi göremez
+  await call('/login', { cc: 'demo', username: 'garson', password: 'garson' });
+  assert.equal((await call(`/products/${second.id}/hidden`, { hidden: true })).status, 403);
+  assert.equal((await call(`/products?cat=${cat}&all=1`)).status, 403);
+  assert.ok(!(await call('/products?cat=' + cat)).data.some((p) => p.id === first.id));
+
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  assert.equal((await call(`/products/${first.id}/hidden`, { hidden: false })).status, 200);
+  assert.ok((await call('/products?cat=' + cat)).data.some((p) => p.id === first.id));
 });

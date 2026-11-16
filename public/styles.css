@@ -166,6 +166,12 @@ input {
   background: var(--surface);
 }
 .search { margin-bottom: 12px; }
+.select { width: 100%; min-height: 50px; padding: 0 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; }
+.prow.off .pname { text-decoration: line-through; }
+.prow.off .padd { opacity: .55; }
+.ptoggle { flex: none; width: 92px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--danger); font-weight: var(--fwb, 600); }
+.ptoggle.show { color: var(--go); }
+.ptoggle:active { background: var(--surface-2); }
 .note { min-height: 40px; font-size: .9rem; }
 
 /* Düğmeler */

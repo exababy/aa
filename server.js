@@ -190,7 +190,41 @@ r.get('/tables', wrap(async (req, res) => {
   res.json(rows);
 }));
 r.get('/categories', wrap(async (req, res) => res.json(await api.categories())));
-r.get('/products', wrap(async (req, res) => res.json(await api.products(intParam(req.query.cat, 'cat')))));
+// Gizli ürünler: SAS API'si kasada kullanılmayan ürünleri de (örn. "Kurye Bedeli") döndürür ve ayırt edecek
+// bir alan vermez. Kasiyer bunları Ayarlar > Menü düzeni ekranından gizler; liste sunucuda dosyada tutulur.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const HIDDEN_FILE = path.join(DATA_DIR, 'hidden-products.json');
+const hidden = new Map(); // ürün id -> ad
+try {
+  for (const [id, name] of Object.entries(JSON.parse(fs.readFileSync(HIDDEN_FILE, 'utf8')))) hidden.set(Number(id), String(name));
+} catch { /* dosya yoksa gizli ürün yok */ }
+function saveHidden() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(HIDDEN_FILE + '.tmp', JSON.stringify(Object.fromEntries(hidden), null, 2));
+  fs.renameSync(HIDDEN_FILE + '.tmp', HIDDEN_FILE);
+}
+const cashierOnly = (req, res, next) => (canReport(req.session)
+  ? next() : res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' }));
+
+r.get('/products', wrap(async (req, res) => {
+  const all = await api.products(intParam(req.query.cat, 'cat'));
+  if (req.query.all !== '1') return res.json(all.filter((p) => !hidden.has(p.id)));
+  if (!canReport(req.session)) return res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' });
+  res.json(all.map((p) => ({ ...p, hidden: hidden.has(p.id) })));
+}));
+r.post('/products/:id/hidden', cashierOnly, wrap(async (req, res) => {
+  const id = intParam(req.params.id, 'id', 1);
+  if (typeof (req.body || {}).hidden !== 'boolean') throw new BadRequest('Geçersiz parametre: hidden');
+  if (req.body.hidden) {
+    const [product] = await api.resolveProducts([id]);
+    if (!product) throw new BadRequest('Ürün bulunamadı.');
+    hidden.set(id, product.name);
+  } else {
+    hidden.delete(id);
+  }
+  saveHidden();
+  res.json({ ok: true, hidden: req.body.hidden });
+}));
 r.get('/sales/:sid', wrap(async (req, res) => res.json(await api.salesDetails(intParam(req.params.sid, 'sid', 1)))));
 r.post('/sales/:sid/print', wrap(async (req, res) => {
   await api.print(intParam(req.params.sid, 'sid', 1));
@@ -214,6 +248,8 @@ r.post('/orders', wrap(async (req, res) => {
     };
   });
   // uid / uname istemciden değil oturumdan alınır
+  const blocked = items.find((it) => hidden.has(it.id));
+  if (blocked) throw new BadRequest(`"${hidden.get(blocked.id)}" menüde gizli; sepetten çıkarın.`);
   const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items);
   // Not: SAS sunucusu sipariş kaydında fişi kendisi basar; mobil API'de bunu kapatan parametre yoktur.
   res.json({ ok: true, ...out });
