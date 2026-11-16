@@ -172,6 +172,23 @@ function viewLogin() {
   const un = el('input', { name: 'username', required: true, autocomplete: 'username', autocapitalize: 'none', value: saved.username || '' });
   const pw = el('input', { name: 'password', type: 'password', required: true, autocomplete: 'current-password' });
   const msg = el('p', { class: 'form-error', role: 'alert' });
+  // Kullanıcı seçimi: sunucuda tanımlı adlar + bu cihazda daha önce giriş yapanlar. Seçince yalnızca şifre yazılır.
+  const users = el('div', { class: 'chips wrap', role: 'group', 'aria-label': 'Kullanıcı seç' });
+  let names = store.get('users', []).filter((n) => typeof n === 'string');
+  const paintUsers = () => {
+    users.hidden = !names.length;
+    users.replaceChildren(...names.map((n) => el('button', {
+      type: 'button', class: 'chip' + (n === un.value ? ' active' : ''),
+      onclick: () => { un.value = n; paintUsers(); pw.value = ''; pw.focus(); },
+    }, n)));
+  };
+  un.addEventListener('input', paintUsers);
+  paintUsers();
+  fetch('/api/login-users').then((r) => (r.ok ? r.json() : [])).then((list) => {
+    if (!Array.isArray(list) || !list.length || !form.isConnected) return;
+    names = [...new Set([...list, ...names])];
+    paintUsers();
+  }).catch(() => {});
   const btn = el('button', { class: 'btn primary block', type: 'submit' }, 'Giriş yap');
   const form = el('form', {
     class: 'login-card',
@@ -183,6 +200,7 @@ function viewLogin() {
       try {
         const r = await api('/login', { cc: cc.value, username: un.value, password: pw.value });
         store.set('login', { cc: cc.value.trim(), username: un.value.trim() });
+        store.set('users', [...new Set([un.value.trim(), ...store.get('users', [])])].slice(0, 8));
         S.user = r.user;
         viewTables();
       } catch (err) {
@@ -196,6 +214,7 @@ function viewLogin() {
     el('h1', null, 'SAS Smart'),
     el('p', { class: 'muted' }, 'Adisyon ve sipariş'),
     el('label', null, 'Müşteri kodu', cc),
+    users,
     el('label', null, 'Kullanıcı adı', un),
     el('label', null, 'Şifre', pw),
     msg, btn);

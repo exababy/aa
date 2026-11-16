@@ -34,6 +34,7 @@ test('zarf çözümleme: bool/int Result, string sarılı JSON, düz dizi', () =
 });
 
 test('oturum olmadan API kapalı', async () => {
+  assert.deepEqual((await call('/login-users')).data, []);
   assert.equal((await call('/fields')).status, 401);
 });
 

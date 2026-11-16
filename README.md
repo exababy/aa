@@ -51,6 +51,7 @@ npm test                  # API testleri (demo verisiyle)
 | `SAS_TIMEOUT_MS` | SAS istek zaman aşımı | `8000` |
 | `SAS_BAHCE_TABLES` | Bahçe sayılacak masa numaraları; boş bırakılırsa ayrım yapılmaz | `1-15,51` |
 | `SAS_REPORT_MAX_AUTH` | Raporları görebilen en yüksek yetki seviyesi | `13` |
+| `SAS_LOGIN_USERS` | Giriş ekranında seçilebilecek kullanıcı adları, virgülle (örn. `Yalçın,Ahmet`) | boş |
 | `SAS_PAKET_FIELD` | Paket servis bölümünün id'si (boşsa adı "paket" içeren bölüm) | otomatik |
 | `SAS_MOCK` | `1` ise demo verisi kullanılır | kapalı |
 

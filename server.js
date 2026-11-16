@@ -106,6 +106,10 @@ r.use((req, res, next) => {
   next();
 });
 
+// Giriş ekranında seçilebilecek kullanıcı adları (isteğe bağlı). SAS API'sinde kullanıcı listesi yoktur.
+const LOGIN_USERS = (process.env.SAS_LOGIN_USERS || '').split(',').map((v) => v.trim()).filter(Boolean).slice(0, 50);
+r.get('/login-users', (req, res) => res.json(LOGIN_USERS));
+
 r.post('/login', wrap(async (req, res) => {
   if (!loginAllowed(req.ip)) return res.status(429).json({ error: 'Çok fazla deneme. Birkaç dakika sonra tekrar deneyin.' });
   const { cc, username, password } = req.body || {};
