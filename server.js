@@ -204,8 +204,9 @@ r.post('/orders', wrap(async (req, res) => {
   const sid = intParam(b.sid ?? 0, 'sid');
   if (!Array.isArray(b.items) || b.items.length < 1 || b.items.length > 200) throw new BadRequest('Sepet boş.');
   const items = b.items.map((it) => {
-    const quantity = intParam(it && it.quantity, 'quantity', 1);
-    if (quantity > 999) throw new BadRequest('Geçersiz adet.');
+    // Adet 0,5'in katı olabilir (1,5 porsiyon gibi); ürünün buna uygunluğu saveSales içinde denetlenir.
+    const quantity = it && typeof it.quantity === 'number' ? it.quantity : NaN;
+    if (!(quantity > 0 && quantity <= 999 && Number.isInteger(quantity * 2))) throw new BadRequest('Geçersiz adet.');
     return {
       id: intParam(it.id, 'id', 1),
       quantity,

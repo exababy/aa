@@ -29,6 +29,8 @@ async function checkVersion() {
 const $app = document.getElementById('app');
 const money = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (n) => `${money.format(n || 0)} ₺`;
+const qty = (n) => Number(n || 0).toLocaleString('tr-TR'); // 1,5 gibi
+const HALF_TYPE = 2; // bu tipteki ürünler yarım porsiyon (0,5 adım) satılabilir
 
 function el(tag, props, ...kids) {
   const n = document.createElement(tag);
@@ -347,7 +349,7 @@ async function viewTables() {
 async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const tok = begin();
   const cartKey = 'cart:' + table.tableId;
-  let cart = store.get(cartKey, []); // [{ id, name, price, quantity, comment }]
+  let cart = store.get(cartKey, []); // [{ id, name, price, type, quantity, comment }]
   let paketNote = paket ? store.get(cartKey + ':note', '') : '';
   let catId = null;
   let query = '';
@@ -400,7 +402,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const line = (id) => cart.find((i) => i.id === id);
   function change(p, delta) {
     let l = line(p.id);
-    if (!l) { l = { id: p.id, name: p.name, price: p.price, quantity: 0, comment: '' }; cart.push(l); }
+    if (!l) { l = { id: p.id, name: p.name, price: p.price, type: p.type, quantity: 0, comment: '' }; cart.push(l); }
     l.quantity = Math.min(999, l.quantity + delta);
     if (l.quantity <= 0) cart = cart.filter((i) => i !== l);
     store.set(cartKey, cart);
@@ -410,7 +412,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   }
   function paintBar() {
     const n = count();
-    countBtn.textContent = `${n} ÜRÜN EKLENDİ`;
+    countBtn.textContent = `${qty(n)} ÜRÜN EKLENDİ`;
     countBtn.disabled = finishBtn.disabled = n === 0;
   }
   // Arama tüm kategorilerde yapılır; eksik kategoriler ilk aramada bir kez yüklenir.
@@ -434,13 +436,15 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     if (!shown.length) return list.replaceChildren(empty(query ? 'Eşleşen ürün yok.' : 'Bu kategoride ürün yok.'));
     list.replaceChildren(...shown.map((p) => {
       const l = line(p.id);
-      // Satıra dokunmak 1 adet ekler; eklenen üründe adet ve azaltma düğmesi görünür.
+      const half = p.type === HALF_TYPE;
+      // Satıra dokunmak 1 adet ekler; yarım porsiyon satılabilen ürünlerde ayrıca +½ düğmesi vardır.
       return el('div', { class: 'prow' + (l ? ' selected' : '') },
         el('button', { class: 'padd', 'aria-label': `${p.name} ekle`, onclick: () => change(p, 1) },
-          l ? el('span', { class: 'qty' }, l.quantity) : null,
+          l ? el('span', { class: 'qty' }, qty(l.quantity)) : null,
           el('span', { class: 'pname' }, p.name),
           el('span', { class: 'pprice' }, fmt(p.price))),
-        l ? el('button', { class: 'pminus', 'aria-label': `${p.name} azalt`, onclick: () => change(p, -1) }, '−') : null);
+        half ? el('button', { class: 'phalf', 'aria-label': `${p.name} yarım porsiyon ekle`, onclick: () => change(p, 0.5) }, '+½') : null,
+        l ? el('button', { class: 'pminus', 'aria-label': `${p.name} azalt`, onclick: () => change(p, half ? -0.5 : -1) }, '−') : null);
     }));
   }
   const paintCat = () => {
@@ -497,7 +501,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
       billPane.replaceChildren(
         rows.length ? el('div', { class: 'list' }, rows.map((r) =>
           el('div', { class: 'row' },
-            el('div', { class: 'grow' }, el('strong', null, `${r.quantity} × ${r.productName}`),
+            el('div', { class: 'grow' }, el('strong', null, `${qty(r.quantity)} × ${r.productName}`),
               el('span', { class: 'muted' }, `${fmt(r.unitPrice)} · ${r.salesDate}`)),
             el('span', { class: 'amount' }, fmt(r.totalPrice))))) : empty('Adisyonda ürün yok.'),
         el('div', { class: 'total' }, el('span', null, 'Toplam'), el('strong', null, fmt(sum))),
@@ -529,10 +533,10 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
       body.replaceChildren(...cart.map((l) => el('div', { class: 'cart-line' },
         el('div', { class: 'row' },
           el('div', { class: 'grow' }, el('strong', null, l.name),
-            el('span', { class: 'muted' }, `${fmt(l.price)} × ${l.quantity} = ${fmt(l.price * l.quantity)}`)),
+            el('span', { class: 'muted' }, `${fmt(l.price)} × ${qty(l.quantity)} = ${fmt(l.price * l.quantity)}`)),
           el('div', { class: 'stepper' },
             el('button', { 'aria-label': `${l.name} azalt`, onclick: () => { step(l, -1); } }, '−'),
-            el('output', null, l.quantity),
+            el('output', null, qty(l.quantity)),
             el('button', { class: 'plus', 'aria-label': `${l.name} artır`, onclick: () => { step(l, 1); } }, '+'))),
         el('input', {
           class: 'note', placeholder: 'Not (örn. acısız)', maxLength: 200, value: l.comment, 'aria-label': `${l.name} notu`,
@@ -540,7 +544,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
         }))));
     }
     function step(l, d) {
-      l.quantity = Math.min(999, l.quantity + d);
+      l.quantity = Math.min(999, l.quantity + d * (l.type === HALF_TYPE ? 0.5 : 1));
       if (l.quantity <= 0) cart = cart.filter((i) => i !== l);
       store.set(cartKey, cart);
       paint();
@@ -646,13 +650,13 @@ function salesReport(rows) {
   const max = Math.max(1, sorted[0].quantity);
   const sum = sorted.reduce((a, r) => a + r.quantity, 0);
   return [
-    el('div', { class: 'stats' }, el('div', { class: 'stat main' }, el('span', null, 'Satılan ürün adedi'), el('strong', null, sum))),
+    el('div', { class: 'stats' }, el('div', { class: 'stat main' }, el('span', null, 'Satılan ürün adedi'), el('strong', null, qty(sum)))),
     el('div', { class: 'list' }, sorted.map((r) => {
       const bar = el('div', { class: 'bar' });
       bar.style.width = `${Math.round((r.quantity / max) * 100)}%`;
       return el('div', { class: 'row' },
         el('div', { class: 'grow' }, el('strong', null, r.name), bar),
-        el('span', { class: 'amount' }, r.quantity));
+        el('span', { class: 'amount' }, qty(r.quantity)));
     })),
   ];
 }

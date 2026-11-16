@@ -224,7 +224,9 @@ input {
 .pprice { flex: none; font-variant-numeric: tabular-nums; }
 .qty { flex: none; min-width: 1.9em; padding: 2px 6px; border-radius: 999px; background: var(--go); color: #fff; text-align: center; font-size: .95rem; font-weight: var(--fwb, 700); }
 .pminus { flex: none; width: 54px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--danger); font-size: 1.6rem; line-height: 1; }
-.pminus:active { background: var(--surface-2); }
+.pminus:active, .phalf:active { background: var(--surface-2); }
+.phalf { flex: none; width: 58px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--go); font-size: 1.1rem; font-weight: var(--fwb, 700); }
+.stepper output { min-width: 34px; }
 
 .sheet {
   width: 100%; max-width: 760px; max-height: 88dvh;

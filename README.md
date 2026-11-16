@@ -14,6 +14,7 @@ SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil önceli
 - Masalarda Tümü / Dolu / Boş filtresi; menüde tüm kategorilerde ürün arama
 - **Raporlar yalnızca kasiyere** görünür (yetki seviyesi 14'ün altı — orijinal uygulamadaki kural)
 - **Ayarlar:** yazı büyüklüğü, kalınlığı ve yazı tipi (cihazda saklanır)
+- **Yarım porsiyon:** SAS'ta ürün tipi 2 olan ürünlerde +½ düğmesi (0,5 / 1,5 porsiyon)
 - **Paket Servis** bölümü: bölüm listesinde Salon'un yanında; yeni paket siparişi, açık paketler, paket notu (müşteri / adres)
 - Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
 - PWA: ana ekrana eklenebilir, uygulama kabuğu çevrimdışı açılır, açık/koyu tema

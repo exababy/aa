@@ -155,3 +155,20 @@ test('sürüm: index.html sürümlü dosya adresleri verir ve önbelleğe alınm
   assert.equal((await fetch(root + '/app.js')).headers.get('cache-control'), 'no-cache');
   assert.equal((await fetch(root + '/sw.js')).headers.get('cache-control'), 'no-cache');
 });
+
+test('yarım porsiyon: yalnızca P_Type 2 ürünlerde 0,5 adım kabul edilir', async () => {
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  const cats = (await call('/categories')).data;
+  const kebap = (await call('/products?cat=' + cats[0].id)).data[0];
+  const icecek = (await call('/products?cat=' + cats[3].id)).data[0];
+  assert.equal(kebap.type, 2);
+  assert.equal(icecek.type, 0);
+  const order = (items) => call('/orders', { fid: 1, tid: 70, sid: 0, items });
+  assert.equal((await order([{ id: icecek.id, quantity: 1.5 }])).status, 400);
+  assert.equal((await order([{ id: kebap.id, quantity: 1.25 }])).status, 400);
+  assert.equal((await order([{ id: kebap.id, quantity: '2' }])).status, 400);
+  assert.equal((await order([{ id: kebap.id, quantity: 1.5 }, { id: icecek.id, quantity: 2 }])).status, 200);
+  const t = (await call('/tables?field=1')).data.find((x) => x.tableId === 70);
+  assert.equal(t.totalPrice, kebap.price * 1.5 + icecek.price * 2);
+  assert.equal((await call('/sales/' + t.sid)).data[0].quantity, 1.5);
+});
