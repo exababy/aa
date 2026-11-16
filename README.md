@@ -15,7 +15,6 @@ SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil önceli
 - **Raporlar yalnızca kasiyere** görünür (yetki seviyesi 14'ün altı — orijinal uygulamadaki kural)
 - **Ayarlar:** yazı büyüklüğü, kalınlığı ve yazı tipi (cihazda saklanır)
 - **Paket Servis** bölümü: bölüm listesinde Salon'un yanında; yeni paket siparişi, açık paketler, paket notu (müşteri / adres)
-- Mutfak ekranı: Bekleyen / Hazırlanıyor / Hazır (otomatik yenilenir)
 - Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
 - PWA: ana ekrana eklenebilir, uygulama kabuğu çevrimdışı açılır, açık/koyu tema
 - `SasUsername` / `SasPasswd` header'ları yalnızca sunucuda tutulur; tarayıcıya gitmez
@@ -84,7 +83,6 @@ API'de karşılığı bulunmaz. Yazdırmadan kayıt için SAS Yazılım'ın sunu
 | `POST /api/orders` `{fid, tid, sid, items:[{id, quantity, comment}]}` | `SaveSales!` |
 | `GET /api/sales/:sid` | `SalesDetails!` |
 | `POST /api/sales/:sid/print` | `SalesPrint!` |
-| `GET /api/kitchen/{bekleyen,hazirlaniyor,hazir}` | `Bekleyen!` / `Hazirlaniyor!` / `Hazir!` |
 | `GET /api/reports/{payments,sales}?start=YYYY-MM-DD&end=YYYY-MM-DD` | `Payments!` / `SalesReport!` |
 
 ## Dosya yapısı

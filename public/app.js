@@ -3,8 +3,8 @@
 
 // ---------- Yardımcılar ----------
 const $app = document.getElementById('app');
-const money = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' });
-const fmt = (n) => money.format(n || 0);
+const money = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n) => `${money.format(n || 0)} ₺`;
 
 function el(tag, props, ...kids) {
   const n = document.createElement(tag);
@@ -24,7 +24,6 @@ function el(tag, props, ...kids) {
 function icon(name) {
   const paths = {
     tables: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-    kitchen: '<path d="M6 13h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6 13a4 4 0 1 1 2.5-7.1 4 4 0 0 1 7 0A4 4 0 1 1 18 13"/>',
     reports: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
     account: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
@@ -128,7 +127,6 @@ function errorBox(err, retry) {
 
 const TABS = [
   ['tables', 'Masalar', () => viewTables()],
-  ['kitchen', 'Mutfak', () => viewKitchen()],
   ['reports', 'Raporlar', () => viewReports()],
   ['account', 'Ayarlar', () => viewAccount()],
 ];
@@ -331,21 +329,35 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   let query = '';
   let tab = 'menu';
 
-  const list = el('div', { class: 'list' });
-  const chips = el('div', { class: 'chips' });
+  const list = el('div', { class: 'plist' });
+  const catName = el('button', { class: 'catbtn name', onclick: () => openCats() }, '…');
   const search = el('input', {
     type: 'search', class: 'search', placeholder: 'Tüm menüde ürün ara…', 'aria-label': 'Tüm menüde ürün ara',
-    oninput: () => { query = search.value.trim().toLocaleLowerCase('tr'); paintProducts(); },
+    oninput: () => { query = search.value.trim().toLocaleLowerCase('tr'); paintCat(); paintProducts(); },
   });
-  const menuPane = el('section', null, chips, search, list);
+  const menuPane = el('section', null,
+    el('div', { class: 'catbar' }, el('button', { class: 'catbtn', onclick: () => openCats() }, 'KATEGORİ'), catName),
+    search, list);
   const billPane = el('section', { hidden: true });
-  const bar = el('button', { class: 'cartbar', onclick: () => openCart() });
-  const footer = el('div', { class: 'footer' }, bar);
+  const countBtn = el('button', { class: 'countbtn', onclick: () => openCart() });
+  const finishBtn = el('button', { class: 'bigbtn finish', onclick: () => openCart() }, 'SİPARİŞİ BİTİR');
+  const footer = el('div', { class: 'footer orderbar' },
+    el('button', {
+      class: 'bigbtn cancel',
+      onclick: () => {
+        if (cart.length && !window.confirm('Eklenen ürünler silinsin mi?')) return;
+        store.del(cartKey);
+        store.del(cartKey + ':note');
+        back();
+      },
+    }, 'VAZGEÇ'),
+    finishBtn);
 
   const main = shell({
-    title: table.tableName,
+    title: `Satış: ${table.tableName}`,
     sub: (paket ? 'Paket servis · ' : '') + (table.sid > 0 ? `Açık adisyon · ${fmt(table.totalPrice)}` : 'Yeni adisyon'),
     back,
+    action: countBtn,
     footer,
   });
   if (table.sid > 0) {
@@ -372,18 +384,10 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     paintProducts();
     paintBar();
   }
-  function stepper(p, qty) {
-    return el('div', { class: 'stepper' },
-      qty > 0 ? el('button', { 'aria-label': `${p.name} azalt`, onclick: () => change(p, -1) }, '−') : null,
-      qty > 0 ? el('output', null, qty) : null,
-      el('button', { class: 'plus', 'aria-label': `${p.name} ekle`, onclick: () => change(p, 1) }, '+'));
-  }
   function paintBar() {
     const n = count();
-    bar.disabled = n === 0;
-    bar.replaceChildren(
-      el('span', null, n ? `${n} ürün` : 'Sepet boş'),
-      el('span', null, n ? `Sepeti gör · ${fmt(total())}` : 'Ürün ekleyin'));
+    countBtn.textContent = `${n} ÜRÜN EKLENDİ`;
+    countBtn.disabled = finishBtn.disabled = n === 0;
   }
   // Arama tüm kategorilerde yapılır; eksik kategoriler ilk aramada bir kez yüklenir.
   let allState = 'idle';
@@ -406,18 +410,38 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     if (!shown.length) return list.replaceChildren(empty(query ? 'Eşleşen ürün yok.' : 'Bu kategoride ürün yok.'));
     list.replaceChildren(...shown.map((p) => {
       const l = line(p.id);
-      return el('div', { class: 'row' + (l ? ' selected' : '') },
-        el('div', { class: 'grow' }, el('strong', null, p.name), el('span', { class: 'muted' }, fmt(p.price))),
-        stepper(p, l ? l.quantity : 0));
+      // Satıra dokunmak 1 adet ekler; eklenen üründe adet ve azaltma düğmesi görünür.
+      return el('div', { class: 'prow' + (l ? ' selected' : '') },
+        el('button', { class: 'padd', 'aria-label': `${p.name} ekle`, onclick: () => change(p, 1) },
+          l ? el('span', { class: 'qty' }, l.quantity) : null,
+          el('span', { class: 'pname' }, p.name),
+          el('span', { class: 'pprice' }, fmt(p.price))),
+        l ? el('button', { class: 'pminus', 'aria-label': `${p.name} azalt`, onclick: () => change(p, -1) }, '−') : null);
     }));
   }
-  const paintChips = () => chips.replaceChildren(...S.cats.map((c) =>
-    el('button', { class: 'chip' + (c.id === catId ? ' active' : ''), onclick: () => selectCat(c.id) }, c.name)));
+  const paintCat = () => {
+    const c = S.cats && S.cats.find((x) => x.id === catId);
+    catName.textContent = query ? 'ARAMA SONUÇLARI' : c ? c.name.toLocaleUpperCase('tr') : '…';
+  };
+  function openCats() {
+    if (!S.cats || !S.cats.length) return;
+    const dlg = el('dialog', { class: 'sheet', onclose: () => dlg.remove() },
+      el('div', { class: 'sheet-head' }, el('h2', null, 'Kategori seç'),
+        el('button', { class: 'btn ghost', onclick: () => dlg.close() }, 'Kapat')),
+      el('div', { class: 'sheet-body catlist' }, S.cats.map((c) =>
+        el('button', {
+          class: 'catitem' + (c.id === catId ? ' active' : ''),
+          onclick: () => { dlg.close(); selectCat(c.id); },
+        }, c.name))));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    document.body.append(dlg);
+    dlg.showModal();
+  }
 
   async function selectCat(id) {
     catId = id;
     if (query) { query = ''; search.value = ''; }
-    paintChips();
+    paintCat();
     if (!S.products.has(id)) {
       list.replaceChildren(loading());
       try {
@@ -537,35 +561,6 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   } catch (err) {
     if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewOrder(table, fid, back, paket)));
   }
-}
-
-// ---------- Mutfak ----------
-async function viewKitchen() {
-  const tok = begin();
-  let status = 'bekleyen';
-  const box = el('div', { class: 'cards' });
-  const main = shell({ title: 'Mutfak', tab: 'kitchen', action: refreshBtn(() => load()) });
-  main.append(
-    segmented([['bekleyen', 'Bekleyen'], ['hazirlaniyor', 'Hazırlanıyor'], ['hazir', 'Hazır']], status,
-      (v) => { status = v; box.replaceChildren(loading()); load(); }),
-    box);
-
-  async function load(silent) {
-    const st = status;
-    try {
-      const rows = await api('/kitchen/' + st);
-      if (tok !== S.nav || st !== status) return;
-      box.replaceChildren(...(rows.length ? rows.map((r) =>
-        el('article', { class: 'card ' + st },
-          el('header', null, el('strong', null, r.name || `Adisyon #${r.sid}`), el('span', { class: 'muted small' }, r.salesDate)),
-          el('p', { class: 'items' }, r.items))) : [empty('Sipariş yok.')]));
-    } catch (err) {
-      if (tok === S.nav && !silent) box.replaceChildren(errorBox(err, () => load()));
-    }
-  }
-  box.replaceChildren(loading());
-  await load();
-  if (tok === S.nav) S.timer = setInterval(() => { if (!document.hidden) load(true); }, 15000);
 }
 
 // ---------- Raporlar ----------

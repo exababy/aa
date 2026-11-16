@@ -5,33 +5,44 @@
 @font-face { font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap; src: url(fonts/nunito-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
 :root {
-  --bg: #fbf7f4;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f3ece7;
-  --text: #24160f;
-  --muted: #7a6a60;
-  --line: #e6dcd5;
-  --accent: #b23a12;
+  --surface-2: #f1f2f4;
+  --text: #2b2b2b;
+  --muted: #666666;
+  --line: #e3e3e3;
+  --bar: #3b74d1;
+  --bar-ink: #ffffff;
+  --accent: #2f62c4;
   --accent-ink: #ffffff;
-  --accent-soft: #fbe6dc;
-  --ok: #1f7a4d;
-  --danger: #b3261e;
-  --radius: 14px;
+  --accent-soft: #e4ecfb;
+  --cat: #3d5596;
+  --cat-2: #5273bd;
+  --open: #c6f3c6;
+  --open-line: #4a9a4a;
+  --go: #3a7d22;
+  --stop: #e8562a;
+  --ok: #2e7d32;
+  --danger: #c0392b;
+  --radius: 10px;
   --nav-h: 60px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17110e;
-    --surface: #221a16;
-    --surface-2: #2e241f;
-    --text: #f5ece6;
-    --muted: #b3a196;
-    --line: #3a2e28;
-    --accent: #ef6a3a;
-    --accent-ink: #1c0d06;
-    --accent-soft: #452213;
-    --ok: #5fd39a;
+    --bg: #12151b;
+    --surface: #1b2029;
+    --surface-2: #262d3a;
+    --text: #eef1f6;
+    --muted: #a9b2c1;
+    --line: #323a49;
+    --bar: #23468a;
+    --accent: #7ea6f3;
+    --accent-ink: #0b1220;
+    --accent-soft: #1d2c4a;
+    --open: #1f4a26;
+    --open-line: #4fae5a;
+    --ok: #6fd08a;
     --danger: #ff8a80;
   }
 }
@@ -62,12 +73,15 @@ h1, h2, p { margin: 0; }
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; gap: 8px;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  background: var(--bar);
+  color: var(--bar-ink);
 }
 .top .titles { flex: 1; min-width: 0; }
 .top h1 { font-size: 1.25rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.top p { font-size: .82rem; color: var(--muted); }
+.top p { font-size: .82rem; opacity: .85; }
+.top .iconbtn:active { background: rgb(255 255 255 / .2); }
+.countbtn { flex: none; border: 0; background: none; color: inherit; font-size: .85rem; font-weight: var(--fwb, 600); min-height: 44px; padding: 0 2px; }
+.countbtn:disabled { opacity: .8; }
 .iconbtn {
   width: 44px; height: 44px; flex: none;
   display: grid; place-items: center;
@@ -123,7 +137,7 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 }
 .table strong { font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
 .table .amount { font-size: .82rem; }
-.table.open { background: var(--accent-soft); border-color: var(--accent); }
+.table.open { background: var(--open); border-color: var(--open-line); }
 .table:active { transform: scale(.97); }
 .amount { font-weight: var(--fwb, 600); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -143,7 +157,7 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   border: 1px solid var(--line); background: var(--surface);
   font-size: 1.3rem; line-height: 1;
 }
-.stepper button.plus { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stepper button.plus { background: var(--go); border-color: var(--go); color: #fff; }
 .stepper output { min-width: 26px; text-align: center; font-weight: var(--fwb, 700); font-variant-numeric: tabular-nums; }
 
 input {
@@ -175,14 +189,42 @@ input {
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, var(--bg) 30%);
 }
-.cartbar {
-  display: flex; justify-content: space-between; align-items: center;
-  width: 100%; max-width: 728px; margin: 0 auto; min-height: 54px; padding: 0 18px;
-  border: 0; border-radius: 16px;
-  background: var(--accent); color: var(--accent-ink); font-weight: var(--fwb, 700);
-  box-shadow: 0 6px 18px rgb(0 0 0 / .22);
+.footer.orderbar { display: flex; gap: 12px; justify-content: center; background: var(--surface-2); padding-top: 12px; }
+.bigbtn {
+  flex: 1; max-width: 340px; min-height: 52px; padding: 0 10px;
+  border: 0; border-radius: 4px; color: #fff; font-size: 1.05rem; letter-spacing: .02em;
+  box-shadow: 0 2px 4px rgb(0 0 0 / .25);
 }
-.cartbar:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; opacity: 1; }
+.bigbtn.cancel { flex: .7; background: var(--stop); }
+.bigbtn.finish { background: var(--go); }
+.bigbtn:disabled { opacity: .5; box-shadow: none; }
+
+/* Sipariş ekranı: kategori düğmeleri ve ürün listesi */
+.catbar { display: flex; gap: 12px; margin: 4px 0 12px; }
+.catbtn {
+  flex: 1; min-height: 50px; padding: 4px 10px;
+  border: 0; border-radius: 4px; background: var(--cat); color: #fff; font-size: 1.05rem;
+  box-shadow: 0 2px 4px rgb(0 0 0 / .25);
+}
+.catbtn.name { flex: 1.8; background: var(--cat-2); overflow-wrap: anywhere; }
+.catlist { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.catitem { min-height: 54px; padding: 6px 10px; border: 0; border-radius: 4px; background: var(--cat-2); color: #fff; font-size: 1rem; overflow-wrap: anywhere; }
+.catitem.active { background: var(--cat); outline: 3px solid var(--accent); outline-offset: 1px; }
+.plist > .state { padding: 32px 8px; }
+.prow { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.prow.selected { background: var(--accent-soft); }
+.padd {
+  flex: 1; min-width: 0; min-height: 58px; padding: 8px 6px;
+  display: flex; align-items: center; gap: 10px;
+  border: 0; background: none; text-align: left; font-size: 1.12rem; color: var(--muted);
+}
+.padd:active { background: var(--surface-2); }
+.prow.selected .padd { color: var(--text); }
+.pname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pprice { flex: none; font-variant-numeric: tabular-nums; }
+.qty { flex: none; min-width: 1.9em; padding: 2px 6px; border-radius: 999px; background: var(--go); color: #fff; text-align: center; font-size: .95rem; font-weight: var(--fwb, 700); }
+.pminus { flex: none; width: 54px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--danger); font-size: 1.6rem; line-height: 1; }
+.pminus:active { background: var(--surface-2); }
 
 .sheet {
   width: 100%; max-width: 760px; max-height: 88dvh;
@@ -203,15 +245,6 @@ input {
 
 .total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 2px 2px; font-size: 1.05rem; }
 .total strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-
-/* Mutfak */
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-.cards > .state { grid-column: 1 / -1; }
-.card { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: var(--radius); }
-.card.hazirlaniyor { border-left-color: #c98a00; }
-.card.hazir { border-left-color: var(--ok); }
-.card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.card .items { white-space: pre-line; overflow-wrap: anywhere; }
 
 /* Raporlar */
 .dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
@@ -260,9 +293,9 @@ label input { color: var(--text); font-size: 1rem; }
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 2147483647;
   transform: translate(-50%, 20px);
   max-width: calc(100vw - 32px); padding: 12px 18px;
-  border-radius: 12px; background: #24160f; color: #fff; font-weight: var(--fwb, 600);
+  border-radius: 12px; background: #2b2b2b; color: #fff; font-weight: var(--fwb, 600);
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
-#toast.ok { background: #1f7a4d; }
-#toast.err { background: #b3261e; }
+#toast.ok { background: #2e7d32; }
+#toast.err { background: #c0392b; }

@@ -118,12 +118,11 @@ test('doğrulama hataları 400 döner', async () => {
   assert.equal((await call('/orders', { fid: 1, tid: 1, sid: 0, items: [] })).status, 400);
   assert.equal((await call('/orders', { fid: 1, tid: 1, sid: 0, items: [{ id: 101, quantity: 0 }] })).status, 400);
   assert.equal((await call('/orders', { fid: 1, tid: 1, sid: 0, items: [{ id: 999999, quantity: 1 }] })).status, 400);
-  assert.equal((await call('/kitchen/__proto__')).status, 400);
   assert.equal((await call('/reports/payments?start=2026-13-99&end=x')).status, 400);
 });
 
-test('mutfak ve raporlar', async () => {
-  for (const s of ['bekleyen', 'hazirlaniyor', 'hazir']) assert.ok(Array.isArray((await call('/kitchen/' + s)).data));
+test('raporlar', async () => {
+  assert.equal((await call('/kitchen/bekleyen')).status, 404); // mutfak bölümü kaldırıldı
   const pay = (await call('/reports/payments?start=2026-11-15&end=2026-11-15')).data;
   assert.ok(pay[0].totalPrice > 0 && pay[0].payMethod);
   assert.ok((await call('/reports/sales?start=2026-11-01&end=2026-11-15')).data[0].quantity > 0);

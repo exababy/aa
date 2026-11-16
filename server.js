@@ -203,13 +203,6 @@ r.post('/orders', wrap(async (req, res) => {
   res.json({ ok: true, ...out });
 }));
 
-const KITCHEN = { bekleyen: 'Bekleyen', hazirlaniyor: 'Hazirlaniyor', hazir: 'Hazir' };
-r.get('/kitchen/:status', wrap(async (req, res) => {
-  const action = Object.hasOwn(KITCHEN, req.params.status) && KITCHEN[req.params.status];
-  if (!action) throw new BadRequest('Geçersiz durum.');
-  res.json(await api.kitchen(action));
-}));
-
 r.use('/reports', (req, res, next) => {
   if (!canReport(req.session)) return res.status(403).json({ error: 'Raporları yalnızca kasiyer görebilir.' });
   next();
