@@ -80,13 +80,14 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
   assert.equal((await call(`/sales/${after.sid}/print`, null, 'POST')).status, 200);
 });
 
-test('paket servis bölümü işaretlenir ve sipariş alır', async () => {
-  const fields = (await call('/fields')).data;
-  const paket = fields.filter((f) => f.paket);
-  assert.equal(paket.length, 1);
-  const free = (await call('/tables?field=' + paket[0].fid)).data.find((t) => t.sid === 0);
-  const order = await call('/orders', { fid: paket[0].fid, tid: free.tableId, sid: 0, items: [{ id: 101, quantity: 1, comment: 'PAKET: Ali, 0555' }] });
+test('adisyon notu (comm) SaveSales ile gönderilir', async () => {
+  const free = (await call('/tables?field=1')).data.find((t) => t.sid === 0);
+  const order = await call('/orders', { fid: 1, tid: free.tableId, sid: 0, comm: 'ikram - masa 1', items: [{ id: 101, quantity: 1 }] });
   assert.equal(order.status, 200);
+  assert.equal(order.data.message, 'comm:ikram - masa 1'); // mock comm'u yansıtır
+  // notsuz sipariş de çalışır
+  const free2 = (await call('/tables?field=1')).data.find((t) => t.sid === 0);
+  assert.equal((await call('/orders', { fid: 1, tid: free2.tableId, sid: 0, items: [{ id: 101, quantity: 1 }] })).status, 200);
 });
 
 test('SAS yalnızca açık masaları döndürse de 72 masanın tamamı listelenir', async () => {
@@ -97,12 +98,11 @@ test('SAS yalnızca açık masaları döndürse de 72 masanın tamamı listeleni
   assert.ok(open.length >= 5 && open.length < 72);
   assert.ok(open.every((t) => t.totalPrice > 0));
   assert.ok((await call('/tables')).data.every((t) => t.sid > 0)); // bölümsüz: yalnızca açık adisyonlar
-  assert.equal((await call('/tables?field=2')).data.length, 72);
 });
 
 test('Salon ikiye ayrılır: Bahçe = 1-15 ve 51, kalanı sıralı Salon', async () => {
   const fields = (await call('/fields')).data;
-  assert.deepEqual(fields.map((f) => f.name), ['Salon', 'Bahçe', 'Paket Servis']);
+  assert.deepEqual(fields.map((f) => f.name), ['Salon', 'Bahçe']);
   const [salon, bahce] = fields;
   assert.equal(salon.fid, bahce.fid);
   const nums = async (f) => (await call(`/tables?field=${f.fid}&part=${f.part}`)).data.map((t) => t.no);

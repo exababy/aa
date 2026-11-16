@@ -256,7 +256,6 @@ function duration(t) {
 
 /**
  * Bölümler SAS'tan gelir; sunucu Salon'u "Salon" ve "Bahçe" olarak ikiye ayırabilir (part).
- * Paket bölümü masa ızgarası yerine sipariş listesi gösterir.
  */
 async function viewTables() {
   const tok = begin();
@@ -279,7 +278,7 @@ async function viewTables() {
       },
     }, f.name)));
 
-  // Sipariş ekranındaki başlık: "Salon 12", "Paket 3" gibi
+  // Sipariş ekranındaki başlık: "Salon 12" gibi
   const named = (t, prefix) => ({ ...t, tableName: `${prefix} ${t.no}` });
 
   function paintTables(tables, fid, field) {
@@ -304,24 +303,6 @@ async function viewTables() {
     }));
   }
 
-  function paintPaket(tables, fid) {
-    const open = tables.filter((t) => t.sid > 0);
-    const free = tables.find((t) => t.sid === 0);
-    grid.className = '';
-    tools.replaceChildren();
-    grid.replaceChildren(
-      el('button', {
-        class: 'btn primary block first',
-        onclick: () => (free ? viewOrder(named(free, 'Paket'), fid, back, true)
-          : toast('Boş paket yeri yok. Önce açık paketlerden birini kapatın.', 'err')),
-      }, '+ Yeni paket siparişi'),
-      el('h2', { class: 'section' }, `Açık paketler (${open.length})`),
-      open.length ? el('div', { class: 'list' }, open.map((t) =>
-        el('button', { class: 'row rowbtn', onclick: () => viewOrder(named(t, 'Paket'), fid, back, true) },
-          el('div', { class: 'grow' }, el('strong', null, `Paket ${t.no}`),
-            el('span', { class: 'muted' }, [t.user, duration(t)].filter(Boolean).join(' · '))),
-          el('span', { class: 'amount' }, fmt(t.totalPrice))))) : empty('Açık paket siparişi yok.'));
-  }
 
   async function load(silent) {
     try {
@@ -333,7 +314,7 @@ async function viewTables() {
       const field = S.fields.find((f) => f.id === S.fieldId);
       const tables = await api(`/tables?field=${field.fid}${field.part ? '&part=' + field.part : ''}`);
       if (tok !== S.nav || field.id !== S.fieldId) return;
-      (field.paket ? paintPaket : paintTables)(tables, field.fid, field);
+      paintTables(tables, field.fid, field);
     } catch (err) {
       if (tok === S.nav && !silent) {
         tools.replaceChildren();
@@ -347,11 +328,11 @@ async function viewTables() {
 }
 
 // ---------- Sipariş (masa) ----------
-async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
+async function viewOrder(table, fid, back = () => viewTables()) {
   const tok = begin();
   const cartKey = 'cart:' + table.tableId;
   let cart = store.get(cartKey, []); // [{ id, name, price, half, quantity, comment }]
-  let paketNote = paket ? store.get(cartKey + ':note', '') : '';
+  let note = store.get(cartKey + ':note', ''); // adisyon notu (SaveSales comm)
   let catId = null;
   let query = '';
   let tab = 'menu';
@@ -382,7 +363,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
 
   const main = shell({
     title: `Satış: ${table.tableName}`,
-    sub: (paket ? 'Paket servis · ' : '') + (table.sid > 0 ? `Açık adisyon · ${fmt(table.totalPrice)}` : 'Yeni adisyon'),
+    sub: table.sid > 0 ? `Açık adisyon · ${fmt(table.totalPrice)}` : 'Yeni adisyon',
     back,
     action: countBtn,
     footer,
@@ -516,11 +497,11 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     const body = el('div', { class: 'sheet-body' });
     const totalEl = el('strong');
     const saveBtn = el('button', { class: 'btn primary block', onclick: submit }, 'Siparişi kaydet');
-    const noteInput = paket ? el('input', {
-      class: 'note', placeholder: 'Paket notu: müşteri adı, telefon, adres', maxLength: 150, value: paketNote,
-      'aria-label': 'Paket notu',
-      oninput: (e) => { paketNote = e.target.value; store.set(cartKey + ':note', paketNote); },
-    }) : null;
+    const noteInput = el('input', {
+      class: 'note', placeholder: 'Adisyon notu (örn. ikram, telefon)', maxLength: 200, value: note,
+      'aria-label': 'Adisyon notu',
+      oninput: (e) => { note = e.target.value; store.set(cartKey + ':note', note); },
+    });
     const dlg = el('dialog', { class: 'sheet', onclose: () => { dlg.remove(); paintProducts(); paintBar(); } },
       el('div', { class: 'sheet-head' }, el('h2', null, `Sepet · ${table.tableName}`),
         el('button', { class: 'btn ghost', onclick: () => dlg.close() }, 'Kapat')),
@@ -553,15 +534,11 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     async function submit() {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Kaydediliyor…';
-      const note = paketNote.trim();
       try {
         await api('/orders', {
           fid, tid: table.tableId, sid: table.sid,
-          items: cart.map((l, i) => ({
-            id: l.id, quantity: l.quantity,
-            // Paket notu ayrı bir alan olmadığı için ilk ürünün notuna eklenir
-            comment: [i === 0 && note ? `PAKET: ${note}` : '', l.comment].filter(Boolean).join(' | '),
-          })),
+          comm: note.trim(),
+          items: cart.map((l) => ({ id: l.id, quantity: l.quantity, comment: l.comment })),
         });
         cart = [];
         store.del(cartKey);
@@ -588,7 +565,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     if (!S.cats.length) return list.replaceChildren(empty('Menü kategorisi bulunamadı.'));
     selectCat(S.cats[0].id);
   } catch (err) {
-    if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewOrder(table, fid, back, paket)));
+    if (tok === S.nav) list.replaceChildren(errorBox(err, () => viewOrder(table, fid, back)));
   }
 }
 

@@ -169,17 +169,15 @@ r.post('/logout', (req, res) => {
 r.get('/me', (req, res) => res.json({ user: userOut(req.session) }));
 
 r.get('/branches', wrap(async (req, res) => res.json(await api.branches())));
-// Paket servis bölümü: SAS_PAKET_FIELD (bölüm id) verilmişse o, yoksa adı "paket" içeren bölümler
-const PAKET_ID = process.env.SAS_PAKET_FIELD ? Number(process.env.SAS_PAKET_FIELD) : null;
-const isPaket = (f) => (PAKET_ID != null ? f.id === PAKET_ID : /paket|gel\s*al|take\s*away/i.test(f.name));
 r.get('/fields', wrap(async (req, res) => {
-  const raw = (await api.fields()).map((f) => ({ id: String(f.id), fid: f.id, name: f.name, paket: isPaket(f) }));
+  const raw = (await api.fields()).map((f) => ({ id: String(f.id), fid: f.id, name: f.name }));
+  // SAS'ta ayrı bir "Bahçe" bölümü yoksa Salon'u Salon + Bahçe olarak ikiye böl.
   const split = BAHCE.size && !raw.some((f) => /bah[cç]e/i.test(f.name))
-    ? raw.find((f) => !f.paket && /salon/i.test(f.name)) || raw.find((f) => !f.paket)
+    ? raw.find((f) => /salon/i.test(f.name)) || raw[0]
     : null;
   res.json(raw.flatMap((f) => (f !== split ? [f] : [
     { ...f, part: 'salon' },
-    { id: `${f.fid}-bahce`, fid: f.fid, name: 'Bahçe', paket: false, part: 'bahce' },
+    { id: `${f.fid}-bahce`, fid: f.fid, name: 'Bahçe', part: 'bahce' },
   ])));
 }));
 r.get('/tables', wrap(async (req, res) => {
@@ -296,11 +294,13 @@ r.post('/orders', wrap(async (req, res) => {
       comment: typeof it.comment === 'string' ? it.comment.trim().slice(0, 200) : '',
     };
   });
+  // Adisyon notu (SaveSales 'comm' parametresi)
+  const comm = typeof b.comm === 'string' ? b.comm.trim().slice(0, 200) : '';
   // uid / uname istemciden değil oturumdan alınır
   const blocked = items.find((it) => hidden.has(it.id));
   if (blocked) throw new BadRequest(`"${hidden.get(blocked.id)}" menüde gizli; sepetten çıkarın.`);
   if (items.some((it) => !Number.isInteger(it.quantity)) && !catNames.size) await categories();
-  const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname }, items, allowHalf);
+  const out = await api.saveSales({ fid, tid, sid, uid: req.session.uid, uname: req.session.uname, comm }, items, allowHalf);
   // Not: SAS sunucusu sipariş kaydında fişi kendisi basar; mobil API'de bunu kapatan parametre yoktur.
   res.json({ ok: true, ...out });
 }));

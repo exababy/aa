@@ -1,6 +1,6 @@
 /* SAS Smart PWA service worker: uygulama kabuğunu çevrimdışı açılış için saklar, /api isteklerine dokunmaz.
    Her şey önce ağdan alınır; önbellek yalnızca bağlantı yokken kullanılır. */
-const CACHE = 'sas-smart-v9';
+const CACHE = 'sas-smart-v10';
 const STATIC = ['/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
