@@ -87,12 +87,23 @@ test('paket servis bölümü işaretlenir ve sipariş alır', async () => {
   assert.equal(order.status, 200);
 });
 
+test('SAS yalnızca açık masaları döndürse de 72 masanın tamamı listelenir', async () => {
+  const all = (await call('/tables?field=1')).data;
+  assert.equal(all.length, 72);
+  assert.deepEqual(all.map((t) => t.tableId), [...Array(72).keys()].map((i) => i + 1));
+  const open = all.filter((t) => t.sid > 0);
+  assert.ok(open.length >= 5 && open.length < 72);
+  assert.ok(open.every((t) => t.totalPrice > 0));
+  assert.ok((await call('/tables')).data.every((t) => t.sid > 0)); // bölümsüz: yalnızca açık adisyonlar
+  assert.equal((await call('/tables?field=2')).data.length, 72);
+});
+
 test('Salon ikiye ayrılır: Bahçe = 1-15 ve 51, kalanı sıralı Salon', async () => {
   const fields = (await call('/fields')).data;
   assert.deepEqual(fields.map((f) => f.name), ['Salon', 'Bahçe', 'Paket Servis']);
   const [salon, bahce] = fields;
   assert.equal(salon.fid, bahce.fid);
-  const nums = async (f) => (await call(`/tables?field=${f.fid}&part=${f.part}`)).data.map((t) => Number(t.tableName));
+  const nums = async (f) => (await call(`/tables?field=${f.fid}&part=${f.part}`)).data.map((t) => t.no);
   assert.deepEqual(await nums(bahce), [...Array(15).keys()].map((i) => i + 1).concat(51));
   const rest = await nums(salon);
   assert.equal(rest.length, 72 - 16);

@@ -90,7 +90,22 @@ function parseTableSet(spec) {
   return set;
 }
 const BAHCE = parseTableSet(process.env.SAS_BAHCE_TABLES ?? '1-15,51');
-const tableNo = (t) => { const m = /\d+/.exec(t.tableName); return m ? Number(m[0]) : null; };
+// SAS yalnızca AÇIK masaları döndürür; orijinal uygulama her bölümde 1..72 numaralı masaları sabit çizer
+// ve TableId'yi masa numarası olarak kullanır. Boş masalar burada tamamlanır.
+const TABLE_COUNT = Math.min(500, Math.max(1, Number(process.env.SAS_TABLE_COUNT ?? 72) || 72));
+function fullTableList(open) {
+  const byNo = new Map(open.filter((t) => t.tableId > 0).map((t) => [t.tableId, t]));
+  const max = Math.min(500, Math.max(TABLE_COUNT, ...byNo.keys()));
+  const rows = [];
+  for (let n = 1; n <= max; n++) {
+    if (n > TABLE_COUNT && !byNo.has(n)) continue;
+    rows.push({
+      sid: 0, tableId: n, tableName: '', days: 0, hours: 0, minutes: 0, totalPrice: 0, discount: 0, user: '', openDate: '',
+      ...byNo.get(n), no: n,
+    });
+  }
+  return rows;
+}
 
 const r = express.Router();
 r.use(express.json({ limit: '200kb' }));
@@ -154,12 +169,9 @@ r.get('/fields', wrap(async (req, res) => {
 r.get('/tables', wrap(async (req, res) => {
   const { part } = req.query;
   if (part !== undefined && part !== 'salon' && part !== 'bahce') throw new BadRequest('Geçersiz parametre: part');
-  let rows = await api.tables(req.query.field === undefined ? null : intParam(req.query.field, 'field'));
-  if (part) {
-    rows = rows
-      .filter((t) => BAHCE.has(tableNo(t)) === (part === 'bahce'))
-      .sort((a, b) => (tableNo(a) ?? Infinity) - (tableNo(b) ?? Infinity));
-  }
+  if (req.query.field === undefined) return res.json(await api.tables(null)); // tüm bölümlerdeki açık adisyonlar
+  let rows = fullTableList(await api.tables(intParam(req.query.field, 'field')));
+  if (part) rows = rows.filter((t) => BAHCE.has(t.no) === (part === 'bahce'));
   res.json(rows);
 }));
 r.get('/categories', wrap(async (req, res) => res.json(await api.categories())));

@@ -254,12 +254,15 @@ async function viewTables() {
       },
     }, f.name)));
 
-  function paintTables(tables, fid) {
+  // Sipariş ekranındaki başlık: "Salon 12", "Paket 3" gibi
+  const named = (t, prefix) => ({ ...t, tableName: `${prefix} ${t.no}` });
+
+  function paintTables(tables, fid, field) {
     grid.className = 'grid';
     const openN = tables.filter((t) => t.sid > 0).length;
     tools.replaceChildren(segmented(
       [['all', `Tümü ${tables.length}`], ['open', `Dolu ${openN}`], ['free', `Boş ${tables.length - openN}`]], filter,
-      (v) => { filter = v; store.set('tableFilter', v); paintTables(tables, fid); }));
+      (v) => { filter = v; store.set('tableFilter', v); paintTables(tables, fid, field); }));
     const shown = tables.filter((t) => filter === 'all' || (t.sid > 0) === (filter === 'open'));
     if (!shown.length) {
       return grid.replaceChildren(empty(!tables.length ? 'Bu bölümde masa yok.' : filter === 'open' ? 'Dolu masa yok.' : 'Boş masa yok.'));
@@ -267,10 +270,10 @@ async function viewTables() {
     grid.replaceChildren(...shown.map((t) => {
       const open = t.sid > 0;
       return el('button', {
-        class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(t, fid, back),
-        'aria-label': `Masa ${t.tableName}, ${open ? 'dolu, ' + fmt(t.totalPrice) : 'boş'}`,
+        class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(named(t, field.name), fid, back),
+        'aria-label': `Masa ${t.no}, ${open ? 'dolu, ' + fmt(t.totalPrice) : 'boş'}`,
       },
-        el('strong', null, t.tableName),
+        el('strong', null, t.no),
         open ? el('span', { class: 'amount' }, fmt(t.totalPrice)) : el('span', { class: 'muted small' }, 'Boş'),
         open ? el('span', { class: 'muted small' }, duration(t)) : null);
     }));
@@ -284,13 +287,13 @@ async function viewTables() {
     grid.replaceChildren(
       el('button', {
         class: 'btn primary block first',
-        onclick: () => (free ? viewOrder(free, fid, back, true)
+        onclick: () => (free ? viewOrder(named(free, 'Paket'), fid, back, true)
           : toast('Boş paket yeri yok. Önce açık paketlerden birini kapatın.', 'err')),
       }, '+ Yeni paket siparişi'),
       el('h2', { class: 'section' }, `Açık paketler (${open.length})`),
       open.length ? el('div', { class: 'list' }, open.map((t) =>
-        el('button', { class: 'row rowbtn', onclick: () => viewOrder(t, fid, back, true) },
-          el('div', { class: 'grow' }, el('strong', null, t.tableName),
+        el('button', { class: 'row rowbtn', onclick: () => viewOrder(named(t, 'Paket'), fid, back, true) },
+          el('div', { class: 'grow' }, el('strong', null, `Paket ${t.no}`),
             el('span', { class: 'muted' }, [t.user, duration(t)].filter(Boolean).join(' · '))),
           el('span', { class: 'amount' }, fmt(t.totalPrice))))) : empty('Açık paket siparişi yok.'));
   }
@@ -305,7 +308,7 @@ async function viewTables() {
       const field = S.fields.find((f) => f.id === S.fieldId);
       const tables = await api(`/tables?field=${field.fid}${field.part ? '&part=' + field.part : ''}`);
       if (tok !== S.nav || field.id !== S.fieldId) return;
-      (field.paket ? paintPaket : paintTables)(tables, field.fid);
+      (field.paket ? paintPaket : paintTables)(tables, field.fid, field);
     } catch (err) {
       if (tok === S.nav && !silent) {
         tools.replaceChildren();

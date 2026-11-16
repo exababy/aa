@@ -49,6 +49,7 @@ npm test                  # API testleri (demo verisiyle)
 | `TRUST_PROXY` | HTTPS reverse proxy arkasındaysa `1` | kapalı |
 | `SESSION_HOURS` | Oturum süresi | `12` |
 | `SAS_TIMEOUT_MS` | SAS istek zaman aşımı | `8000` |
+| `SAS_TABLE_COUNT` | Her bölümdeki masa sayısı (SAS yalnızca açık masaları gönderir; boşlar buna göre çizilir) | `72` |
 | `SAS_BAHCE_TABLES` | Bahçe sayılacak masa numaraları; boş bırakılırsa ayrım yapılmaz | `1-15,51` |
 | `SAS_REPORT_MAX_AUTH` | Raporları görebilen en yüksek yetki seviyesi | `13` |
 | `SAS_LOGIN_USERS` | Giriş ekranında seçilebilecek kullanıcı adları, virgülle (örn. `Yalçın,Ahmet`) | boş |
