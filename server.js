@@ -76,7 +76,7 @@ function businessRange(q) {
 // Raporlar: orijinal SAS Smart uygulamasındaki kural — yetki seviyesi 14'ün altındakiler (kasiyer/yönetici) görür.
 const REPORT_MAX_AUTH = Number(process.env.SAS_REPORT_MAX_AUTH ?? 13);
 const canReport = (u) => u.auth <= REPORT_MAX_AUTH;
-const userOut = (u) => ({ id: u.uid, name: u.uname, reports: canReport(u) });
+const userOut = (u) => ({ id: u.uid, name: u.uname, auth: u.auth, reports: canReport(u) });
 
 // Bahçe: SAS'ta ayrı bölüm yoksa Salon'un belirli masaları "Bahçe" olarak ayrılır (örn. "1-15,51").
 function parseTableSet(spec) {

@@ -673,7 +673,7 @@ async function viewAccount() {
   main.append(
     el('div', { class: 'profile' }, el('div', { class: 'avatar' }, (S.user.name || '?').slice(0, 1).toLocaleUpperCase('tr')),
       el('div', null, el('strong', null, S.user.name),
-        el('span', { class: 'muted' }, `${S.user.reports ? 'Kasiyer' : 'Garson'} · Kullanıcı no: ${S.user.id}`))),
+        el('span', { class: 'muted' }, `${S.user.reports ? 'Kasiyer' : 'Garson'} · No: ${S.user.id} · Yetki: ${S.user.auth}`))),
     el('h2', { class: 'section' }, 'Görünüm'),
     el('div', { class: 'prefs' },
       Object.entries(PREFS).map(([k, def]) => el('div', { class: 'pref' },

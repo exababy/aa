@@ -49,6 +49,7 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
   assert.equal(login.status, 200);
   assert.equal(login.data.user.name, 'Demo Kasiyer');
   assert.equal(login.data.user.reports, true);
+  assert.equal(login.data.user.auth, 1);
   assert.match(cookie, /^sas_sid=[a-f0-9]{64}$/);
 
   const fields = (await call('/fields')).data;
