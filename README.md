@@ -15,7 +15,7 @@ SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil önceli
 - **Raporlar yalnızca kasiyere** görünür (yetki seviyesi 14'ün altı — orijinal uygulamadaki kural)
 - **Ayarlar:** yazı büyüklüğü, kalınlığı ve yazı tipi (cihazda saklanır)
 - **Yarım porsiyon:** SAS'ta ürün tipi 2 olan ürünlerde +½ düğmesi (0,5 / 1,5 porsiyon)
-- **Menü düzeni (kasiyer):** kasada kullanılmayan ürünler (örn. "Kurye Bedeli") Ayarlar'dan gizlenir; liste sunucuda `data/hidden-products.json` dosyasında saklanır
+- **Menü düzeni (kasiyer):** kasada kullanılmayan kategoriler ve ürünler (örn. "Kurye Bedeli") Ayarlar'dan gizlenir; listeler sunucuda `data/` klasöründe saklanır
 - **Paket Servis** bölümü: bölüm listesinde Salon'un yanında; yeni paket siparişi, açık paketler, paket notu (müşteri / adres)
 - Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
 - PWA: ana ekrana eklenebilir, uygulama kabuğu çevrimdışı açılır, açık/koyu tema
@@ -54,7 +54,7 @@ npm test                  # API testleri (demo verisiyle)
 | `SAS_BAHCE_TABLES` | Bahçe sayılacak masa numaraları; boş bırakılırsa ayrım yapılmaz | `1-15,51` |
 | `SAS_REPORT_MAX_AUTH` | Raporları görebilen en yüksek yetki seviyesi | `13` |
 | `SAS_LOGIN_USERS` | Giriş ekranında seçilebilecek kullanıcı adları, virgülle (örn. `Yalçın,Ahmet`) | boş |
-| `DATA_DIR` | Gizli ürün listesinin saklandığı klasör | `./data` |
+| `DATA_DIR` | Gizli kategori / ürün listelerinin saklandığı klasör | `./data` |
 | `SAS_PAKET_FIELD` | Paket servis bölümünün id'si (boşsa adı "paket" içeren bölüm) | otomatik |
 | `SAS_MOCK` | `1` ise demo verisi kullanılır | kapalı |
 

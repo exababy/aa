@@ -148,6 +148,7 @@ r.post('/login', wrap(async (req, res) => {
   }
   const user = await api.login(cc.trim(), username.trim(), password);
   if (!user) return res.status(401).json({ error: 'Giriş başarısız. Bilgilerinizi kontrol edin.' });
+  attempts.delete(req.ip); // başarılı giriş sayacı sıfırlar (aynı ağdaki telefonlar birbirini kilitlemesin)
   const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, { ...user, expires: Date.now() + SESSION_TTL });
   setCookie(req, res, token, SESSION_TTL / 1000);
@@ -189,25 +190,51 @@ r.get('/tables', wrap(async (req, res) => {
   if (part) rows = rows.filter((t) => BAHCE.has(t.no) === (part === 'bahce'));
   res.json(rows);
 }));
-r.get('/categories', wrap(async (req, res) => res.json(await api.categories())));
 // Gizli ürünler: SAS API'si kasada kullanılmayan ürünleri de (örn. "Kurye Bedeli") döndürür ve ayırt edecek
 // bir alan vermez. Kasiyer bunları Ayarlar > Menü düzeni ekranından gizler; liste sunucuda dosyada tutulur.
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const HIDDEN_FILE = path.join(DATA_DIR, 'hidden-products.json');
-const hidden = new Map(); // ürün id -> ad
-try {
-  for (const [id, name] of Object.entries(JSON.parse(fs.readFileSync(HIDDEN_FILE, 'utf8')))) hidden.set(Number(id), String(name));
-} catch { /* dosya yoksa gizli ürün yok */ }
-function saveHidden() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(HIDDEN_FILE + '.tmp', JSON.stringify(Object.fromEntries(hidden), null, 2));
-  fs.renameSync(HIDDEN_FILE + '.tmp', HIDDEN_FILE);
+function hiddenStore(fileName) {
+  const file = path.join(DATA_DIR, fileName);
+  const map = new Map(); // id -> ad
+  try {
+    for (const [id, name] of Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')))) map.set(Number(id), String(name));
+  } catch { /* dosya yoksa gizli kayıt yok */ }
+  map.save = () => {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(file + '.tmp', JSON.stringify(Object.fromEntries(map), null, 2));
+    fs.renameSync(file + '.tmp', file);
+  };
+  return map;
 }
+const hidden = hiddenStore('hidden-products.json');
+const hiddenCats = hiddenStore('hidden-categories.json');
 const cashierOnly = (req, res, next) => (canReport(req.session)
   ? next() : res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' }));
 
+r.get('/categories', wrap(async (req, res) => {
+  const all = await api.categories();
+  if (req.query.all !== '1') return res.json(all.filter((c) => !hiddenCats.has(c.id)));
+  if (!canReport(req.session)) return res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' });
+  res.json(all.map((c) => ({ ...c, hidden: hiddenCats.has(c.id) })));
+}));
+r.post('/categories/:id/hidden', cashierOnly, wrap(async (req, res) => {
+  const id = intParam(req.params.id, 'id', 1);
+  if (typeof (req.body || {}).hidden !== 'boolean') throw new BadRequest('Geçersiz parametre: hidden');
+  if (req.body.hidden) {
+    const cat = (await api.categories()).find((c) => c.id === id);
+    if (!cat) throw new BadRequest('Kategori bulunamadı.');
+    hiddenCats.set(id, cat.name);
+  } else {
+    hiddenCats.delete(id);
+  }
+  hiddenCats.save();
+  res.json({ ok: true, hidden: req.body.hidden });
+}));
+
 r.get('/products', wrap(async (req, res) => {
-  const all = await api.products(intParam(req.query.cat, 'cat'));
+  const cat = intParam(req.query.cat, 'cat');
+  if (req.query.all !== '1' && hiddenCats.has(cat)) return res.json([]);
+  const all = await api.products(cat);
   if (req.query.all !== '1') return res.json(all.filter((p) => !hidden.has(p.id)));
   if (!canReport(req.session)) return res.status(403).json({ error: 'Bu işlemi yalnızca kasiyer yapabilir.' });
   res.json(all.map((p) => ({ ...p, hidden: hidden.has(p.id) })));
@@ -222,7 +249,7 @@ r.post('/products/:id/hidden', cashierOnly, wrap(async (req, res) => {
   } else {
     hidden.delete(id);
   }
-  saveHidden();
+  hidden.save();
   res.json({ ok: true, hidden: req.body.hidden });
 }));
 r.get('/sales/:sid', wrap(async (req, res) => res.json(await api.salesDetails(intParam(req.params.sid, 'sid', 1)))));

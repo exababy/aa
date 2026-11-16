@@ -200,3 +200,24 @@ test('gizli ürünler: kasiyer gizler, listede ve siparişte görünmez, dosyada
   assert.equal((await call(`/products/${first.id}/hidden`, { hidden: false })).status, 200);
   assert.ok((await call('/products?cat=' + cat)).data.some((p) => p.id === first.id));
 });
+
+test('gizli kategoriler: listede görünmez, ürünleri boş döner, garson gizleyemez', async () => {
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  const cats = (await call('/categories')).data;
+  const target = cats[4];
+  assert.equal((await call(`/categories/${target.id}/hidden`, { hidden: true })).status, 200);
+  assert.deepEqual((await call('/categories')).data.map((c) => c.id), cats.filter((c) => c.id !== target.id).map((c) => c.id));
+  assert.deepEqual((await call('/products?cat=' + target.id)).data, []);
+  assert.ok((await call(`/products?cat=${target.id}&all=1`)).data.length > 0);
+  assert.equal((await call('/categories?all=1')).data.find((c) => c.id === target.id).hidden, true);
+  assert.equal((await call('/categories/999999/hidden', { hidden: true })).status, 400);
+
+  await call('/login', { cc: 'demo', username: 'garson', password: 'garson' });
+  assert.equal((await call(`/categories/${cats[0].id}/hidden`, { hidden: true })).status, 403);
+  assert.equal((await call('/categories?all=1')).status, 403);
+  assert.ok(!(await call('/categories')).data.some((c) => c.id === target.id));
+
+  await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
+  assert.equal((await call(`/categories/${target.id}/hidden`, { hidden: false })).status, 200);
+  assert.equal((await call('/categories')).data.length, cats.length);
+});
