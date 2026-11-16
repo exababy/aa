@@ -356,6 +356,9 @@ app.get('/kurulum', (req, res) => {
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>SAS Smart — Telefona kurulum</title>
 <link rel="stylesheet" href="/styles.css"></head><body><main>
 <h1>Telefona kurulum</h1>
+<h2>iPhone</h2>
+<p>Sertifika gerekmez. <strong>Safari</strong>'de <a href="/">bu adresi</a> açın → alttaki <strong>Paylaş</strong> düğmesi → <strong>Ana Ekrana Ekle</strong> → <strong>Ekle</strong>.</p>
+<h2>Android</h2>
 ${t ? `<p class="muted">Her telefonda bir kez yapılır. Sertifika yalnızca bu sunucuya (yerel ağ) aittir.</p>
 <ol>
 <li><p><a class="btn primary" href="/sas-smart-ca.crt">1. Sertifikayı indir</a></p></li>
