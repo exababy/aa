@@ -26,7 +26,7 @@ function icon(name) {
     tables: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     kitchen: '<path d="M6 13h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6 13a4 4 0 1 1 2.5-7.1 4 4 0 0 1 7 0A4 4 0 1 1 18 13"/>',
     reports: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
-    account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    account: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
   };
@@ -34,11 +34,42 @@ function icon(name) {
   s.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
   return s;
 }
+const buzz = () => { try { navigator.vibrate && navigator.vibrate(8); } catch { /* desteklenmiyor */ } };
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* depolama kapalı */ } },
   del(k) { try { localStorage.removeItem(k); } catch { /* depolama kapalı */ } },
 };
+
+// ---------- Görünüm ayarları (cihazda saklanır) ----------
+const PREFS = {
+  size: { label: 'Yazı büyüklüğü', def: '16px', options: [['14px', 'Küçük'], ['16px', 'Normal'], ['18px', 'Büyük'], ['21px', 'Çok büyük']] },
+  weight: { label: 'Yazı kalınlığı', def: '400', options: [['400', 'Normal'], ['500', 'Orta'], ['700', 'Kalın']] },
+  font: { label: 'Yazı tipi', def: 'system', options: [['system', 'Sistem'], ['inter', 'Inter'], ['nunito', 'Nunito'], ['serif', 'Serif'], ['mono', 'Eş aralıklı']] },
+};
+const FONT_STACKS = {
+  system: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  inter: '"Inter", system-ui, sans-serif',
+  nunito: '"Nunito", system-ui, sans-serif',
+  serif: 'Georgia, "Noto Serif", "Times New Roman", serif',
+  mono: 'ui-monospace, "Roboto Mono", "Droid Sans Mono", Menlo, Consolas, monospace',
+};
+function getPrefs() {
+  const saved = store.get('prefs', {});
+  const out = {};
+  for (const [k, def] of Object.entries(PREFS)) {
+    out[k] = def.options.some(([v]) => v === saved[k]) ? saved[k] : def.def;
+  }
+  return out;
+}
+function applyPrefs() {
+  const p = getPrefs();
+  const root = document.documentElement.style;
+  root.setProperty('--fs', p.size);
+  root.setProperty('--fw', p.weight);
+  root.setProperty('--fwb', { 400: '600', 500: '700', 700: '800' }[p.weight]);
+  root.setProperty('--ff', FONT_STACKS[p.font]);
+}
 
 let toastTimer;
 function toast(msg, kind) {
@@ -99,7 +130,7 @@ const TABS = [
   ['tables', 'Masalar', () => viewTables()],
   ['kitchen', 'Mutfak', () => viewKitchen()],
   ['reports', 'Raporlar', () => viewReports()],
-  ['account', 'Hesap', () => viewAccount()],
+  ['account', 'Ayarlar', () => viewAccount()],
 ];
 
 /** Ortak sayfa iskeleti. main öğesini döndürür. */
@@ -113,7 +144,7 @@ function shell({ title, sub, back, action, tab, footer }) {
     el('div', { class: 'offline-bar' }, 'Çevrimdışısınız — veriler güncel olmayabilir'),
     main,
     footer || null,
-    tab ? el('nav', { class: 'tabs', 'aria-label': 'Ana menü' }, TABS.map(([id, label, go]) =>
+    tab ? el('nav', { class: 'tabs', 'aria-label': 'Ana menü' }, TABS.filter(([id]) => id !== 'reports' || (S.user && S.user.reports)).map(([id, label, go]) =>
       el('button', { class: id === tab ? 'active' : '', 'aria-current': id === tab ? 'page' : null, onclick: go },
         icon(id), el('span', null, label)))) : null,
   ].filter(Boolean));
@@ -181,29 +212,47 @@ function duration(t) {
   return parts.join(' ');
 }
 
-/** Bölümler (Salon, Paket Servis, ...) SAS'tan gelir. Paket bölümü masa ızgarası yerine sipariş listesi gösterir. */
+/**
+ * Bölümler SAS'tan gelir; sunucu Salon'u "Salon" ve "Bahçe" olarak ikiye ayırabilir (part).
+ * Paket bölümü masa ızgarası yerine sipariş listesi gösterir.
+ */
 async function viewTables() {
   const tok = begin();
   const back = () => viewTables();
   const main = shell({ title: 'Masalar', sub: S.user && S.user.name, tab: 'tables', action: refreshBtn(() => load()) });
   const chips = el('div', { class: 'chips' });
+  const tools = el('div');
   const grid = el('div', null, loading());
-  main.append(chips, grid);
+  main.append(chips, tools, grid);
+  let filter = store.get('tableFilter', 'all');
 
   const paintChips = () => chips.replaceChildren(...S.fields.map((f) =>
     el('button', {
       class: 'chip' + (f.id === S.fieldId ? ' active' : ''),
-      onclick: () => { S.fieldId = f.id; store.set('fieldId', f.id); paintChips(); grid.replaceChildren(loading()); load(); },
+      onclick: () => {
+        S.fieldId = f.id; store.set('fieldId', f.id);
+        paintChips(); tools.replaceChildren(); grid.className = ''; grid.replaceChildren(loading()); load();
+      },
     }, f.name)));
 
   function paintTables(tables, fid) {
     grid.className = 'grid';
-    if (!tables.length) return grid.replaceChildren(empty('Bu bölümde masa yok.'));
-    grid.replaceChildren(...tables.map((t) => {
+    const openN = tables.filter((t) => t.sid > 0).length;
+    tools.replaceChildren(segmented(
+      [['all', `Tümü ${tables.length}`], ['open', `Dolu ${openN}`], ['free', `Boş ${tables.length - openN}`]], filter,
+      (v) => { filter = v; store.set('tableFilter', v); paintTables(tables, fid); }));
+    const shown = tables.filter((t) => filter === 'all' || (t.sid > 0) === (filter === 'open'));
+    if (!shown.length) {
+      return grid.replaceChildren(empty(!tables.length ? 'Bu bölümde masa yok.' : filter === 'open' ? 'Dolu masa yok.' : 'Boş masa yok.'));
+    }
+    grid.replaceChildren(...shown.map((t) => {
       const open = t.sid > 0;
-      return el('button', { class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(t, fid, back) },
+      return el('button', {
+        class: 'table' + (open ? ' open' : ''), onclick: () => viewOrder(t, fid, back),
+        'aria-label': `Masa ${t.tableName}, ${open ? 'dolu, ' + fmt(t.totalPrice) : 'boş'}`,
+      },
         el('strong', null, t.tableName),
-        open ? el('span', { class: 'amount' }, fmt(t.totalPrice)) : el('span', { class: 'muted' }, 'Boş'),
+        open ? el('span', { class: 'amount' }, fmt(t.totalPrice)) : el('span', { class: 'muted small' }, 'Boş'),
         open ? el('span', { class: 'muted small' }, duration(t)) : null);
     }));
   }
@@ -212,6 +261,7 @@ async function viewTables() {
     const open = tables.filter((t) => t.sid > 0);
     const free = tables.find((t) => t.sid === 0);
     grid.className = '';
+    tools.replaceChildren();
     grid.replaceChildren(
       el('button', {
         class: 'btn primary block first',
@@ -234,11 +284,15 @@ async function viewTables() {
       if (!S.fields.some((f) => f.id === S.fieldId)) S.fieldId = S.fields[0].id;
       if (!chips.children.length) paintChips();
       const field = S.fields.find((f) => f.id === S.fieldId);
-      const tables = await api('/tables?field=' + field.id);
+      const tables = await api(`/tables?field=${field.fid}${field.part ? '&part=' + field.part : ''}`);
       if (tok !== S.nav || field.id !== S.fieldId) return;
-      (field.paket ? paintPaket : paintTables)(tables, field.id);
+      (field.paket ? paintPaket : paintTables)(tables, field.fid);
     } catch (err) {
-      if (tok === S.nav && !silent) grid.replaceChildren(errorBox(err, () => { grid.replaceChildren(loading()); load(); }));
+      if (tok === S.nav && !silent) {
+        tools.replaceChildren();
+        grid.className = '';
+        grid.replaceChildren(errorBox(err, () => { grid.replaceChildren(loading()); load(); }));
+      }
     }
   }
   await load();
@@ -258,7 +312,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
   const list = el('div', { class: 'list' });
   const chips = el('div', { class: 'chips' });
   const search = el('input', {
-    type: 'search', class: 'search', placeholder: 'Ürün ara…', 'aria-label': 'Ürün ara',
+    type: 'search', class: 'search', placeholder: 'Tüm menüde ürün ara…', 'aria-label': 'Tüm menüde ürün ara',
     oninput: () => { query = search.value.trim().toLocaleLowerCase('tr'); paintProducts(); },
   });
   const menuPane = el('section', null, chips, search, list);
@@ -292,6 +346,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
     l.quantity = Math.min(999, l.quantity + delta);
     if (l.quantity <= 0) cart = cart.filter((i) => i !== l);
     store.set(cartKey, cart);
+    buzz();
     paintProducts();
     paintBar();
   }
@@ -308,8 +363,22 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
       el('span', null, n ? `${n} ürün` : 'Sepet boş'),
       el('span', null, n ? `Sepeti gör · ${fmt(total())}` : 'Ürün ekleyin'));
   }
+  // Arama tüm kategorilerde yapılır; eksik kategoriler ilk aramada bir kez yüklenir.
+  let allState = 'idle';
+  function loadAllProducts() {
+    allState = 'loading';
+    Promise.all(S.cats.filter((c) => !S.products.has(c.id)).map(async (c) => S.products.set(c.id, await api('/products?cat=' + c.id))))
+      .then(() => { allState = 'done'; }, () => { allState = 'failed'; })
+      .then(() => { if (tok === S.nav) paintProducts(); });
+  }
   function paintProducts() {
-    const items = S.products.get(catId);
+    let items = S.products.get(catId);
+    if (query && S.cats) {
+      if (allState === 'idle') loadAllProducts();
+      if (allState === 'loading') return list.replaceChildren(loading());
+      const seen = new Set();
+      items = S.cats.flatMap((c) => S.products.get(c.id) || []).filter((p) => !seen.has(p.id) && seen.add(p.id));
+    }
     if (!items) return;
     const shown = query ? items.filter((p) => p.name.toLocaleLowerCase('tr').includes(query)) : items;
     if (!shown.length) return list.replaceChildren(empty(query ? 'Eşleşen ürün yok.' : 'Bu kategoride ürün yok.'));
@@ -325,6 +394,7 @@ async function viewOrder(table, fid, back = () => viewTables(), paket = false) {
 
   async function selectCat(id) {
     catId = id;
+    if (query) { query = ''; search.value = ''; }
     paintChips();
     if (!S.products.has(id)) {
       list.replaceChildren(loading());
@@ -483,6 +553,7 @@ function businessDay() {
 }
 
 function viewReports() {
+  if (!S.user || !S.user.reports) return viewTables();
   const tok = begin();
   let kind = 'payments';
   const today = businessDay();
@@ -545,14 +616,38 @@ function salesReport(rows) {
   ];
 }
 
-// ---------- Hesap ----------
+// ---------- Ayarlar ----------
 async function viewAccount() {
   const tok = begin();
   const branches = el('div', { class: 'list' }, loading());
-  const main = shell({ title: 'Hesap', tab: 'account' });
+  const main = shell({ title: 'Ayarlar', tab: 'account' });
+  const prefs = getPrefs();
+  const setPref = (k, v) => { prefs[k] = v; store.set('prefs', prefs); applyPrefs(); };
+
   main.append(
     el('div', { class: 'profile' }, el('div', { class: 'avatar' }, (S.user.name || '?').slice(0, 1).toLocaleUpperCase('tr')),
-      el('div', null, el('strong', null, S.user.name), el('span', { class: 'muted' }, `Kullanıcı no: ${S.user.id}`))),
+      el('div', null, el('strong', null, S.user.name),
+        el('span', { class: 'muted' }, `${S.user.reports ? 'Kasiyer' : 'Garson'} · Kullanıcı no: ${S.user.id}`))),
+    el('h2', { class: 'section' }, 'Görünüm'),
+    el('div', { class: 'prefs' },
+      Object.entries(PREFS).map(([k, def]) => el('div', { class: 'pref' },
+        el('span', { class: 'pref-label', id: 'pref-' + k }, def.label),
+        k === 'font'
+          ? el('div', { class: 'chips wrap', role: 'group', 'aria-labelledby': 'pref-' + k }, def.options.map(([v, label]) => {
+            const b = el('button', {
+              class: 'chip' + (v === prefs[k] ? ' active' : ''),
+              onclick: () => { setPref(k, v); for (const c of b.parentNode.children) c.classList.toggle('active', c === b); },
+            }, label);
+            b.style.fontFamily = FONT_STACKS[v];
+            return b;
+          }))
+          : segmented(def.options, prefs[k], (v) => setPref(k, v)))),
+      el('div', { class: 'preview' }, el('strong', null, 'Adana Dürüm'), el('span', { class: 'muted' }, '2 adet · az acılı'),
+        el('span', { class: 'amount' }, fmt(700))),
+      el('button', {
+        class: 'btn ghost',
+        onclick: () => { store.del('prefs'); applyPrefs(); viewAccount(); },
+      }, 'Varsayılana dön')),
     el('h2', { class: 'section' }, 'Şubeler'), branches,
     S.installEvt ? el('button', {
       class: 'btn block',
@@ -563,6 +658,7 @@ async function viewAccount() {
       onclick: async () => {
         try { await api('/logout', null, 'POST'); } catch { /* yine de çıkış yap */ }
         S.user = null;
+        S.fields = null;
         viewLogin();
       },
     }, 'Çıkış yap'));
@@ -578,6 +674,7 @@ async function viewAccount() {
 }
 
 // ---------- Başlangıç ----------
+applyPrefs();
 const setOffline = () => document.body.classList.toggle('offline', !navigator.onLine);
 window.addEventListener('online', setOffline);
 window.addEventListener('offline', setOffline);

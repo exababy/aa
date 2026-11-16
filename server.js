@@ -72,6 +72,26 @@ function businessRange(q) {
   return [`${start} 06:00:00`, `${next} 06:00:00`];
 }
 
+// Raporlar: orijinal SAS Smart uygulamasındaki kural — yetki seviyesi 14'ün altındakiler (kasiyer/yönetici) görür.
+const REPORT_MAX_AUTH = Number(process.env.SAS_REPORT_MAX_AUTH ?? 13);
+const canReport = (u) => u.auth <= REPORT_MAX_AUTH;
+const userOut = (u) => ({ id: u.uid, name: u.uname, reports: canReport(u) });
+
+// Bahçe: SAS'ta ayrı bölüm yoksa Salon'un belirli masaları "Bahçe" olarak ayrılır (örn. "1-15,51").
+function parseTableSet(spec) {
+  const set = new Set();
+  for (const part of String(spec).split(',')) {
+    const m = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(part);
+    if (!m) continue;
+    const a = Number(m[1]);
+    const b = m[2] ? Number(m[2]) : a;
+    for (let n = Math.min(a, b); n <= Math.max(a, b) && set.size < 1000; n++) set.add(n);
+  }
+  return set;
+}
+const BAHCE = parseTableSet(process.env.SAS_BAHCE_TABLES ?? '1-15,51');
+const tableNo = (t) => { const m = /\d+/.exec(t.tableName); return m ? Number(m[0]) : null; };
+
 const r = express.Router();
 r.use(express.json({ limit: '200kb' }));
 r.use((req, res, next) => {
@@ -97,7 +117,7 @@ r.post('/login', wrap(async (req, res) => {
   const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, { ...user, expires: Date.now() + SESSION_TTL });
   setCookie(req, res, token, SESSION_TTL / 1000);
-  res.json({ user: { id: user.uid, name: user.uname } });
+  res.json({ user: userOut(user) });
 }));
 
 r.use((req, res, next) => {
@@ -111,15 +131,33 @@ r.post('/logout', (req, res) => {
   setCookie(req, res, '', 0);
   res.json({ ok: true });
 });
-r.get('/me', (req, res) => res.json({ user: { id: req.session.uid, name: req.session.uname } }));
+r.get('/me', (req, res) => res.json({ user: userOut(req.session) }));
 
 r.get('/branches', wrap(async (req, res) => res.json(await api.branches())));
 // Paket servis bölümü: SAS_PAKET_FIELD (bölüm id) verilmişse o, yoksa adı "paket" içeren bölümler
 const PAKET_ID = process.env.SAS_PAKET_FIELD ? Number(process.env.SAS_PAKET_FIELD) : null;
 const isPaket = (f) => (PAKET_ID != null ? f.id === PAKET_ID : /paket|gel\s*al|take\s*away/i.test(f.name));
-r.get('/fields', wrap(async (req, res) => res.json((await api.fields()).map((f) => ({ ...f, paket: isPaket(f) })))));
-r.get('/tables', wrap(async (req, res) =>
-  res.json(await api.tables(req.query.field === undefined ? null : intParam(req.query.field, 'field')))));
+r.get('/fields', wrap(async (req, res) => {
+  const raw = (await api.fields()).map((f) => ({ id: String(f.id), fid: f.id, name: f.name, paket: isPaket(f) }));
+  const split = BAHCE.size && !raw.some((f) => /bah[cç]e/i.test(f.name))
+    ? raw.find((f) => !f.paket && /salon/i.test(f.name)) || raw.find((f) => !f.paket)
+    : null;
+  res.json(raw.flatMap((f) => (f !== split ? [f] : [
+    { ...f, part: 'salon' },
+    { id: `${f.fid}-bahce`, fid: f.fid, name: 'Bahçe', paket: false, part: 'bahce' },
+  ])));
+}));
+r.get('/tables', wrap(async (req, res) => {
+  const { part } = req.query;
+  if (part !== undefined && part !== 'salon' && part !== 'bahce') throw new BadRequest('Geçersiz parametre: part');
+  let rows = await api.tables(req.query.field === undefined ? null : intParam(req.query.field, 'field'));
+  if (part) {
+    rows = rows
+      .filter((t) => BAHCE.has(tableNo(t)) === (part === 'bahce'))
+      .sort((a, b) => (tableNo(a) ?? Infinity) - (tableNo(b) ?? Infinity));
+  }
+  res.json(rows);
+}));
 r.get('/categories', wrap(async (req, res) => res.json(await api.categories())));
 r.get('/products', wrap(async (req, res) => res.json(await api.products(intParam(req.query.cat, 'cat')))));
 r.get('/sales/:sid', wrap(async (req, res) => res.json(await api.salesDetails(intParam(req.params.sid, 'sid', 1)))));
@@ -156,6 +194,10 @@ r.get('/kitchen/:status', wrap(async (req, res) => {
   res.json(await api.kitchen(action));
 }));
 
+r.use('/reports', (req, res, next) => {
+  if (!canReport(req.session)) return res.status(403).json({ error: 'Raporları yalnızca kasiyer görebilir.' });
+  next();
+});
 r.get('/reports/payments', wrap(async (req, res) => res.json(await api.payments(...businessRange(req.query)))));
 r.get('/reports/sales', wrap(async (req, res) => res.json(await api.salesReport(...businessRange(req.query)))));
 

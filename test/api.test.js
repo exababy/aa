@@ -45,13 +45,14 @@ test('hatalı giriş reddedilir', async () => {
 test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', async () => {
   const login = await call('/login', { cc: 'demo', username: 'demo', password: 'demo' });
   assert.equal(login.status, 200);
-  assert.equal(login.data.user.name, 'Demo Garson');
+  assert.equal(login.data.user.name, 'Demo Kasiyer');
+  assert.equal(login.data.user.reports, true);
   assert.match(cookie, /^sas_sid=[a-f0-9]{64}$/);
 
   const fields = (await call('/fields')).data;
-  assert.ok(fields.length && fields[0].id && fields[0].name);
+  assert.ok(fields.length && fields[0].fid && fields[0].name);
 
-  const tables = (await call('/tables?field=' + fields[0].id)).data;
+  const tables = (await call('/tables?field=' + fields[0].fid)).data;
   const free = tables.find((t) => t.sid === 0);
   assert.ok(free && free.tableId);
 
@@ -60,12 +61,12 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
   assert.ok(products[0].price > 0);
 
   const order = await call('/orders', {
-    fid: fields[0].id, tid: free.tableId, sid: 0,
+    fid: fields[0].fid, tid: free.tableId, sid: 0,
     items: [{ id: products[0].id, quantity: 2, comment: 'acısız', price: 1 }],
   });
   assert.equal(order.status, 200);
 
-  const after = (await call('/tables?field=' + fields[0].id)).data.find((t) => t.tableId === free.tableId);
+  const after = (await call('/tables?field=' + fields[0].fid)).data.find((t) => t.tableId === free.tableId);
   assert.ok(after.sid > 0);
   // fiyat istemciden değil sunucudaki menüden alınır
   assert.equal(after.totalPrice, products[0].price * 2);
@@ -80,10 +81,24 @@ test('paket servis bölümü işaretlenir ve sipariş alır', async () => {
   const fields = (await call('/fields')).data;
   const paket = fields.filter((f) => f.paket);
   assert.equal(paket.length, 1);
-  assert.equal(fields.filter((f) => !f.paket).length, 3);
-  const free = (await call('/tables?field=' + paket[0].id)).data.find((t) => t.sid === 0);
-  const order = await call('/orders', { fid: paket[0].id, tid: free.tableId, sid: 0, items: [{ id: 101, quantity: 1, comment: 'PAKET: Ali, 0555' }] });
+  const free = (await call('/tables?field=' + paket[0].fid)).data.find((t) => t.sid === 0);
+  const order = await call('/orders', { fid: paket[0].fid, tid: free.tableId, sid: 0, items: [{ id: 101, quantity: 1, comment: 'PAKET: Ali, 0555' }] });
   assert.equal(order.status, 200);
+});
+
+test('Salon ikiye ayrılır: Bahçe = 1-15 ve 51, kalanı sıralı Salon', async () => {
+  const fields = (await call('/fields')).data;
+  assert.deepEqual(fields.map((f) => f.name), ['Salon', 'Bahçe', 'Paket Servis']);
+  const [salon, bahce] = fields;
+  assert.equal(salon.fid, bahce.fid);
+  const nums = async (f) => (await call(`/tables?field=${f.fid}&part=${f.part}`)).data.map((t) => Number(t.tableName));
+  assert.deepEqual(await nums(bahce), [...Array(15).keys()].map((i) => i + 1).concat(51));
+  const rest = await nums(salon);
+  assert.equal(rest.length, 72 - 16);
+  assert.equal(rest[0], 16);
+  assert.ok(!rest.includes(51) && rest.includes(50) && rest.includes(52));
+  assert.deepEqual(rest, [...rest].sort((a, b) => a - b));
+  assert.equal((await call(`/tables?field=${salon.fid}&part=x`)).status, 400);
 });
 
 test('doğrulama hataları 400 döner', async () => {
@@ -107,4 +122,12 @@ test('farklı kaynaktan POST reddedilir, çıkış oturumu kapatır', async () =
   assert.equal(res.status, 403);
   assert.equal((await call('/logout', null, 'POST')).status, 200);
   assert.equal((await call('/me')).status, 401);
+});
+
+test('garson raporları göremez', async () => {
+  const login = await call('/login', { cc: 'demo', username: 'garson', password: 'garson' });
+  assert.equal(login.data.user.reports, false);
+  assert.equal((await call('/reports/payments?start=2026-11-15&end=2026-11-15')).status, 403);
+  assert.equal((await call('/reports/sales?start=2026-11-15&end=2026-11-15')).status, 403);
+  assert.equal((await call('/fields')).status, 200);
 });

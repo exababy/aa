@@ -10,6 +10,10 @@ SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil önceli
 
 - Giriş (müşteri kodu / kullanıcı / şifre) → bölüm → masa → kategori → ürün → sepet → **sipariş kaydet**
 - Açık adisyon detayı ve adisyon yazdırma
+- **Bahçe / Salon ayrımı:** SAS'taki Salon masaları iki bölüme ayrılır (varsayılan: Bahçe = 1-15 ve 51, kalanı sıralı Salon)
+- Masalarda Tümü / Dolu / Boş filtresi; menüde tüm kategorilerde ürün arama
+- **Raporlar yalnızca kasiyere** görünür (yetki seviyesi 14'ün altı — orijinal uygulamadaki kural)
+- **Ayarlar:** yazı büyüklüğü, kalınlığı ve yazı tipi (cihazda saklanır)
 - **Paket Servis** bölümü: bölüm listesinde Salon'un yanında; yeni paket siparişi, açık paketler, paket notu (müşteri / adres)
 - Mutfak ekranı: Bekleyen / Hazırlanıyor / Hazır (otomatik yenilenir)
 - Raporlar: ödemeler ve satışlar (iş günü 06:00 başlangıcına göre)
@@ -30,7 +34,7 @@ npm start                 # http://localhost:3000
 Gerçek sunucu olmadan denemek için:
 
 ```bash
-npm run demo              # giriş: demo / demo / demo
+npm run demo              # kasiyer: demo / demo / demo — garson: demo / garson / garson
 npm test                  # API testleri (demo verisiyle)
 ```
 
@@ -45,6 +49,8 @@ npm test                  # API testleri (demo verisiyle)
 | `TRUST_PROXY` | HTTPS reverse proxy arkasındaysa `1` | kapalı |
 | `SESSION_HOURS` | Oturum süresi | `12` |
 | `SAS_TIMEOUT_MS` | SAS istek zaman aşımı | `8000` |
+| `SAS_BAHCE_TABLES` | Bahçe sayılacak masa numaraları; boş bırakılırsa ayrım yapılmaz | `1-15,51` |
+| `SAS_REPORT_MAX_AUTH` | Raporları görebilen en yüksek yetki seviyesi | `13` |
 | `SAS_PAKET_FIELD` | Paket servis bölümünün id'si (boşsa adı "paket" içeren bölüm) | otomatik |
 | `SAS_MOCK` | `1` ise demo verisi kullanılır | kapalı |
 
@@ -70,7 +76,7 @@ API'de karşılığı bulunmaz. Yazdırmadan kayıt için SAS Yazılım'ın sunu
 | `POST /api/login` `{cc, username, password}` | `Auth!` |
 | `GET /api/branches` | `Branch!?Auth=22` |
 | `GET /api/fields` | `Fields!` |
-| `GET /api/tables?field=` | `TableStatus!` |
+| `GET /api/tables?field=&part=` | `TableStatus!` |
 | `GET /api/categories` | `MenuCat!` |
 | `GET /api/products?cat=` | `Product!` |
 | `POST /api/orders` `{fid, tid, sid, items:[{id, quantity, comment}]}` | `SaveSales!` |

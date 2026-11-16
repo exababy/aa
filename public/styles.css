@@ -1,3 +1,9 @@
+/* Uygulamayla gelen yazı tipleri (SIL OFL 1.1, bkz. fonts/LICENSE-*.txt) — yalnızca seçilince indirilir */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap; src: url(fonts/nunito-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap; src: url(fonts/nunito-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
 :root {
   --bg: #fbf7f4;
   --surface: #ffffff;
@@ -31,12 +37,12 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; font-size: var(--fs, 16px); }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: var(--fw, 400) 1rem/1.4 var(--ff, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   overscroll-behavior-y: none;
 }
 button, input { font: inherit; color: inherit; }
@@ -89,7 +95,7 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border: 0; background: none; color: var(--muted); font-size: .72rem;
 }
-.tabs button.active { color: var(--accent); font-weight: 600; }
+.tabs button.active { color: var(--accent); font-weight: var(--fwb, 600); }
 
 /* Çipler ve sekmeler */
 .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 16px 12px; margin: 0 -16px; scrollbar-width: none; }
@@ -99,26 +105,27 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   border: 1px solid var(--line); border-radius: 999px;
   background: var(--surface); white-space: nowrap;
 }
-.chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: var(--fwb, 600); }
 
 .segmented { display: flex; padding: 4px; margin-bottom: 12px; background: var(--surface-2); border-radius: 12px; }
 .segmented button { flex: 1; min-height: 40px; border: 0; border-radius: 9px; background: none; color: var(--muted); }
-.segmented button.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .14); }
+.segmented button.active { background: var(--surface); color: var(--text); font-weight: var(--fwb, 600); box-shadow: 0 1px 3px rgb(0 0 0 / .14); }
 
 /* Masalar */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr)); gap: 8px; }
 .grid > .state { grid-column: 1 / -1; }
 .table {
-  min-height: 92px; padding: 10px;
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px;
-  text-align: left;
+  min-height: 5.4rem; padding: 8px 4px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px;
+  text-align: center;
   border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--surface);
 }
-.table strong { font-size: .95rem; overflow-wrap: anywhere; }
+.table strong { font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
+.table .amount { font-size: .82rem; }
 .table.open { background: var(--accent-soft); border-color: var(--accent); }
 .table:active { transform: scale(.97); }
-.amount { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.amount { font-weight: var(--fwb, 600); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Listeler */
 .list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -126,7 +133,7 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 .list > .row + .row, .list > .cart-line + .cart-line { border-top: 1px solid var(--line); }
 .row.selected { background: var(--accent-soft); }
 .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.grow strong { overflow-wrap: anywhere; font-weight: 600; }
+.grow strong { overflow-wrap: anywhere; font-weight: var(--fwb, 600); }
 .grow .muted { font-size: .85rem; }
 .bar { height: 6px; border-radius: 3px; background: var(--accent); min-width: 4px; }
 
@@ -137,7 +144,7 @@ main.has-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   font-size: 1.3rem; line-height: 1;
 }
 .stepper button.plus { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.stepper output { min-width: 26px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stepper output { min-width: 26px; text-align: center; font-weight: var(--fwb, 700); font-variant-numeric: tabular-nums; }
 
 input {
   width: 100%; min-height: 46px; padding: 0 14px;
@@ -151,7 +158,7 @@ input {
 .btn {
   min-height: 46px; padding: 0 18px;
   border: 1px solid var(--line); border-radius: 12px;
-  background: var(--surface); font-weight: 600;
+  background: var(--surface); font-weight: var(--fwb, 600);
 }
 .btn.block { display: block; width: 100%; margin-top: 12px; }
 .btn.block.first { margin-top: 0; margin-bottom: 16px; min-height: 54px; }
@@ -172,7 +179,7 @@ input {
   display: flex; justify-content: space-between; align-items: center;
   width: 100%; max-width: 728px; margin: 0 auto; min-height: 54px; padding: 0 18px;
   border: 0; border-radius: 16px;
-  background: var(--accent); color: var(--accent-ink); font-weight: 700;
+  background: var(--accent); color: var(--accent-ink); font-weight: var(--fwb, 700);
   box-shadow: 0 6px 18px rgb(0 0 0 / .22);
 }
 .cartbar:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; opacity: 1; }
@@ -220,8 +227,18 @@ label input { color: var(--text); font-size: 1rem; }
 /* Hesap */
 .profile { display: flex; align-items: center; gap: 14px; padding: 8px 0 16px; }
 .profile > div:last-child { display: flex; flex-direction: column; }
-.avatar { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 1.4rem; font-weight: 700; }
-.section { font-size: .85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 8px 2px; }
+.avatar { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 1.4rem; font-weight: var(--fwb, 700); }
+.section { font-size: .85rem; font-weight: var(--fwb, 600); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 8px 2px; }
+
+.prefs { display: flex; flex-direction: column; gap: 14px; padding: 14px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.pref { display: flex; flex-direction: column; gap: 8px; }
+.pref-label { font-size: .85rem; color: var(--muted); }
+.pref .segmented { margin: 0; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+.preview { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; }
+.preview .amount { grid-row: 1 / span 2; grid-column: 2; }
+.preview .muted { font-size: .85rem; }
+.prefs .btn.ghost { align-self: flex-start; min-height: 36px; padding: 0; }
 
 /* Durumlar */
 .state { padding: 40px 16px; text-align: center; color: var(--muted); }
@@ -243,7 +260,7 @@ label input { color: var(--text); font-size: 1rem; }
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 2147483647;
   transform: translate(-50%, 20px);
   max-width: calc(100vw - 32px); padding: 12px 18px;
-  border-radius: 12px; background: #24160f; color: #fff; font-weight: 600;
+  border-radius: 12px; background: #24160f; color: #fff; font-weight: var(--fwb, 600);
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
