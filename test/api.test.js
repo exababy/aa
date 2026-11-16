@@ -146,7 +146,7 @@ test('garson raporları göremez', async () => {
 test('sürüm: index.html sürümlü dosya adresleri verir ve önbelleğe alınmaz', async () => {
   const root = base.replace('/api', '');
   const { version } = (await call('/version')).data;
-  assert.match(version, /^[a-f0-9]{10}$/);
+  assert.match(version, /^\d+\.\d+\.\d+-[a-f0-9]{7}$/);
   const res = await fetch(root + '/');
   const html = await res.text();
   assert.equal(res.headers.get('cache-control'), 'no-store');

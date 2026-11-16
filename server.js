@@ -125,13 +125,14 @@ r.use((req, res, next) => {
 // Sürüm: arayüz dosyaları değişince değişir. index.html'deki dosya adreslerine eklenir (?v=...),
 // böylece telefon eski app.js / styles.css dosyasını önbellekten kullanamaz.
 const PUBLIC = path.join(__dirname, 'public');
+const APP_SEMVER = require('./package.json').version;
 function buildVersion() {
   const h = crypto.createHash('sha1');
   for (const f of ['index.html', 'app.js', 'styles.css', 'sw.js']) {
     const st = fs.statSync(path.join(PUBLIC, f));
     h.update(`${f}:${st.size}:${st.mtimeMs};`);
   }
-  return h.digest('hex').slice(0, 10);
+  return `${APP_SEMVER}-${h.digest('hex').slice(0, 7)}`;
 }
 r.get('/version', (req, res) => res.json({ version: buildVersion() }));
 

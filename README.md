@@ -61,6 +61,12 @@ SAS sunucusu, sipariş kaydedildiğinde (`SaveSales`) fişi kendiliğinden basar
 uygulamada (APK) bunu kapatan bir parametre yoktur; kasadaki "Yazdırma !" kutusunun mobil
 API'de karşılığı bulunmaz. Yazdırmadan kayıt için SAS Yazılım'ın sunucuya bir parametre eklemesi gerekir.
 
+## Sürüm
+
+Arayüz dosyaları sürümlü adresle yüklenir: `/app.js?v=1.2.0-ab12cd3`. İlk kısım `package.json` içindeki
+`version`, ikinci kısım dosyalar değişince kendiliğinden değişen kısa koddur. Telefonlar sunucudaki sürüm
+farklıysa kendini yeniler; sürüm Ayarlar ekranında görünür.
+
 ## Yayına alma notları
 
 - **PWA kurulumu ve service worker için HTTPS şarttır** (localhost hariç). Uygulamayı
