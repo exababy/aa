@@ -1,16 +1,26 @@
 {
   "name": "sas-smart-pwa",
   "version": "1.8.0",
-  "description": "SAS Smart Suite için Node.js tabanlı mobil PWA (adisyon / sipariş)",
+  "description": "NetCHIEF Smart: yeni kasa arayüzü (pos/) ve SAS Smart mobil PWA",
   "private": true,
   "main": "server.js",
-  "engines": { "node": ">=20.6" },
+  "engines": {
+    "node": ">=20.6"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "demo": "SAS_MOCK=1 node server.js",
-    "test": "SAS_MOCK=1 node --test"
+    "test": "SAS_MOCK=1 node --test",
+    "pos": "node --no-warnings --env-file-if-exists=.env pos/server.js",
+    "pos:demo": "POS_DEMO=1 node --no-warnings pos/server.js",
+    "pos:exe": "node pos/build.js"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
   }
 }

@@ -1,3 +1,54 @@
+# NetCHIEF Smart — yeni kasa arayüzü (`pos/`)
+
+Masaüstü **NetCHIEF Smart.exe** programının Node.js ile yeniden yazılmış sürümü. Ekran yerleşimi eski programla
+aynıdır (sol: Masa / Satış sekmeleri, orta: 72 masa ya da ürünler, sağ: sipariş paneli, alt: Adisyon Detayları);
+yalnızca görünüm yenilendi ve her ekran boyutuna ölçeklenir. Aynı `netchief` MySQL veritabanını kullanır, bu yüzden
+eski program ve el terminalleriyle yan yana çalışabilir.
+
+| Eski | Yeni |
+|---|---|
+| ![eski](pos/docs/eski-ana-ekran.png) | ![yeni](pos/docs/yeni-masa.png) |
+
+```bash
+npm install
+npm run pos:demo      # örnek veriyle: http://localhost:3100  (Kasiyer / Yalçın: 1234 — Ahmet (garson): 1111)
+npm run pos           # gerçek veritabanı (.env içinde POS_DB_* ya da POS_CONFIG_INI)
+npm run pos:exe       # dist/NetCHIEF-Smart.exe üretir (tek dosya, kurulum gerektirmez)
+npm test
+```
+
+**Exe kullanımı:** `NetCHIEF-Smart.exe` dosyasını eski programın klasörüne (`config.ini` yanına) koyun, yanına
+`pos/pos.env.example` dosyasını `pos.env` adıyla kopyalayıp MySQL şifresini ve yazıcı adreslerini yazın. Exe sunucuyu
+başlatır ve arayüzü Edge/Chrome uygulama penceresinde açar; diğer kasalar ve tabletler `http://<kasa-ip>:3100`
+adresinden aynı ekranı kullanabilir. Arayüz dosyaları exe'nin içinde bellekten sunulur.
+
+**Kapsam:** giriş (kullanıcı listesi + şifre), masalar, satış (0,5 / 1,5 / 1–4 adet, kg ürün, joker ürün, bedelsiz,
+açıklama, teslim saati, "Yazdırma !", "Sipariş Hazırlanmasın"), Kaydet → yazıcıya göre mutfak fişi, Adisyon Detayları
+(Ödeme: Nakit / Kredi Kartı / Multi Ödeme / Ödeme penceresi; Yazdır, Düzenle + sebepli iptal, Taşı / birleştir /
+kısmi aktarım, İndirim, Kilit Aç, İptal, pax), Paket Servis müşteri seçimi, Rezervasyon, Çağrı Merkezi, Kasadan Çıkış,
+BUL (satış no), Seçenekler (müşteriler / cari tahsilat / ekstre, kullanıcılar, bölümler, ürünler ve gruplar, raporlar,
+gün sonu, tahsilat iptal). İş kuralları ve SQL'ler eski exe'nin kaynak çözümlemesinden alındı (`pos/lib/store.js`).
+
+**Eski programa göre farklar / eklenenler:** masada tutar ve süre her zaman görünür; yetkisi olmayan kullanıcıda
+iptal / indirim / bedelsiz için başka bir yetkilinin şifresi sorulur; kalem bazında not; rezervasyonda kişi / çocuk /
+masa alanları artık kaydedilir; cari bakiye her işlemde satış − tahsilat olarak yeniden hesaplanır; SQL enjeksiyonuna
+kapalı (parametreli sorgular); fiyat her zaman sunucuda ürün kaydından alınır.
+
+**Henüz yok / dikkat:**
+- Yazdırma yalnızca **ağ yazıcılarına** (ESC/POS, port 9100, `POS_PRINTERS`) yapılır; Windows yazıcı adına (USB) baskı,
+  terazi, kart okuyucu, Caller-ID cihazı ve müşteri ekranı bağlanmadı. Yazıcı tanımlı değilse fiş ekranda önizlenir.
+- Mobil API (SASncps, 8081), e-posta / SMS gönderimi, Senqron, Self Servis ve Hızlı Satış bölümleri taşınmadı;
+  el terminalleri için eski program çalışmaya devam etmelidir.
+- Canlı veritabanında **denenmedi**: testler demo şemasıyla SQLite ve MariaDB üzerinde geçiyor, ancak gerçek
+  `netchief` şeması elimizde yok. İlk kurulumu veritabanının bir kopyasında deneyin.
+- Windows exe'si bu ortamda üretildi ama Windows'ta çalıştırılıp denenemedi.
+- Şifreler eski programla uyumluluk için veritabanında düz metin kalır.
+
+Dosyalar: `pos/server.js` (API), `pos/lib/store.js` (iş kuralları), `pos/lib/db.js` (MySQL / SQLite), `pos/lib/print.js`
+(fişler), `pos/lib/schema.js` (yalnızca demo / test şeması), `pos/public/` (arayüz), `pos/main.js` + `pos/build.js` (exe).
+
+---
+
 # SAS Smart PWA
 
 SAS Smart Suite (restoran adisyon / POS) için **Node.js tabanlı, mobil öncelikli PWA**.
