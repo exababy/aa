@@ -65,7 +65,7 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
 
   const order = await call('/orders', {
     fid: fields[0].fid, tid: free.tableId, sid: 0,
-    items: [{ id: products[0].id, quantity: 2, comment: 'acısız', price: 1 }],
+    items: [{ id: products[0].id, quantity: 2, comment: "  acısız' ", price: 1 }],
   });
   assert.equal(order.status, 200);
 
@@ -76,7 +76,8 @@ test('giriş → bölüm → masa → menü → sipariş → adisyon akışı', 
 
   const details = (await call('/sales/' + after.sid)).data;
   assert.equal(details[0].quantity, 2);
-  assert.equal(details[0].productName, products[0].name);
+  // ürün notu ürün adına eklenir: SAS sunucusu PrComment'i kullanmaz, fişe yalnızca adı basar
+  assert.equal(details[0].productName, `${products[0].name} (acısız)`);
   assert.equal((await call(`/sales/${after.sid}/print`, null, 'POST')).status, 200);
 });
 
